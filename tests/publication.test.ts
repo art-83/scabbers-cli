@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Store } from "../src/storage/store.js";
 import { Publication } from "../src/development/publication.js";
 import { configSchema } from "../src/config/types/config.js";
-it("pushes only a reviewed task/staging branch and reconciles a lost MR response without another commit or MR", async () => {
+it("publishes changed repositories only and reconciles a lost MR response without another commit or MR", async () => {
   const directory = mkdtempSync(join(tmpdir(), "scabbers-publication-"));
   const origin = join(directory, "origin.git"),
     repo = join(directory, "repository");
@@ -31,10 +31,13 @@ it("pushes only a reviewed task/staging branch and reconciles a lost MR response
   git(["push", "origin", "staging"]);
   const store = new Store(join(directory, "state.db"));
   const run = store.create("development", "NOLA-LOCAL", "codex", "profile", {});
+  const reference = join(directory, "reference");
+  git(["clone", origin, reference], directory);
+  git(["checkout", "-b", `codex/scabbers-${run.id}`], reference);
   git(["checkout", "-b", `codex/scabbers-${run.id}`]);
   writeFileSync(join(repo, "source.ts"), "export const value=2;\n");
   run.data = {
-    workspaces: { "arcca-pdv": repo },
+    workspaces: { "arcca-pdv": repo, "arccanet-frontend": reference },
     form: { proposed_fix: { files: ["arcca-pdv/source.ts"] } },
   };
   store.save(run);
@@ -46,7 +49,9 @@ it("pushes only a reviewed task/staging branch and reconciles a lost MR response
         path: repo,
         stagingUrl: "https://staging.example.test",
         testCommand: ["node", "--test"],
+        gitlabProjectId: "123",
       },
+      { name: "arccanet-frontend", path: reference, gitlabProjectId: "456" },
     ],
   });
   const publication = new Publication(store, config, directory);
@@ -83,6 +88,16 @@ it("pushes only a reviewed task/staging branch and reconciles a lost MR response
     const recovered = store.get(run.id);
     const result = await publication.publish(recovered);
     expect(result["arcca-pdv"]).toMatchObject({ mergeRequest: { iid: 1 } });
+    expect(result["arccanet-frontend"]).toBeUndefined();
+    expect(
+      (store.get(run.id).data.publicationProgress as any)["arccanet-frontend"],
+    ).toBeUndefined();
+    expect(git(["rev-parse", "HEAD"], reference)).toBe(base);
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.every(([url]) => !String(url).includes("/456/")),
+    ).toBe(true);
     expect(posts).toBe(1);
     expect(git(["rev-parse", "HEAD"])).toBe(committed);
     expect(git(["rev-parse", "master"], origin)).toBe(base);

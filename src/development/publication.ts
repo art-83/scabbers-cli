@@ -142,6 +142,8 @@ export class Publication {
           throw new Error(
             "Repository changed since concrete publication review",
           );
+        // Investigation may include reference repositories with no deliverable diff.
+        if (!status && !currentDiff.stdout.trim()) continue;
         if (status) await git(["commit", "-m", `Fix ${run.source}`]);
         head = await git(["rev-parse", "HEAD"]);
         progress[name] = { head };
