@@ -1,0 +1,7 @@
+npm run format:check && (
+  # Git exports repository-specific variables to hooks. Tests create other repositories.
+  for git_variable in $(git rev-parse --local-env-vars); do
+    unset "$git_variable"
+  done
+  npm test
+)

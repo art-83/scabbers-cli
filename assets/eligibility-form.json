@@ -130,16 +130,8 @@
     "score": "P(eligible) + P(eligible_with_decision), both option orders averaged",
     "a_candidate_min_score": 0.89,
     "provisional": true,
-    "factual_gates": [
-      "not_bug",
-      "opted_out",
-      "too_thin"
-    ],
-    "flags": [
-      "restricted_domain",
-      "open_decisions",
-      "provider_change"
-    ],
+    "factual_gates": ["not_bug", "opted_out", "too_thin"],
+    "flags": ["restricted_domain", "open_decisions", "provider_change"],
     "why": "Provisional cutoff retained at 0.89; the earlier backtest evaluated a narrower policy and does not calibrate this supervised-attempt policy. Validate against representative cases and observed delivery outcomes.",
     "form_gates": {
       "outside_code": "the fix itself needs a provider, infrastructure, permission, configuration or production-data change that no NOLA skill covers (provider_skills): class C. A lookup only (action read) is not a gate, and a change a NOLA skill covers is the provider_change flag."
@@ -149,10 +141,7 @@
   "provider_skills": {
     "sendgrid": {
       "skill": "nola-engineering:sendgrid-account",
-      "changes": [
-        "template_version",
-        "suppression_removal"
-      ],
+      "changes": ["template_version", "suppression_removal"],
       "approval": "the owner's go-ahead on Scabbers before activating a version or removing a suppression",
       "verify": "read the resource back; a test send needs its own authorization"
     }

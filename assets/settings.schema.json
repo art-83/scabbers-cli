@@ -44,10 +44,7 @@
     "engine": {
       "default": "claude",
       "type": "string",
-      "enum": [
-        "claude",
-        "codex"
-      ]
+      "enum": ["claude", "codex"]
     },
     "workers": {
       "default": 3,
@@ -80,9 +77,7 @@
     "slack": {
       "default": {
         "channel": "C0BU8TX3NTW",
-        "reportBotIds": [
-          "B0C0B2WU7PU"
-        ]
+        "reportBotIds": ["B0C0B2WU7PU"]
       },
       "type": "object",
       "properties": {
@@ -91,9 +86,7 @@
           "type": "string"
         },
         "reportBotIds": {
-          "default": [
-            "B0C0B2WU7PU"
-          ],
+          "default": ["B0C0B2WU7PU"],
           "type": "array",
           "items": {
             "type": "string"
@@ -110,10 +103,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "channel",
-        "reportBotIds"
-      ],
+      "required": ["channel", "reportBotIds"],
       "additionalProperties": false
     },
     "schedule": {
@@ -149,19 +139,12 @@
                 "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
               }
             },
-            "required": [
-              "day",
-              "start",
-              "end"
-            ],
+            "required": ["day", "start", "end"],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "zone",
-        "shifts"
-      ],
+      "required": ["zone", "shifts"],
       "additionalProperties": false
     },
     "jira": {
@@ -220,10 +203,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "baseUrl",
-        "projectId"
-      ],
+      "required": ["baseUrl", "projectId"],
       "additionalProperties": false
     },
     "repositories": {
@@ -234,11 +214,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "enum": [
-              "arccanet-backend",
-              "arccanet-frontend",
-              "arcca-pdv"
-            ]
+            "enum": ["arccanet-backend", "arccanet-frontend", "arcca-pdv"]
           },
           "path": {
             "type": "string"
@@ -263,13 +239,7 @@
             }
           }
         },
-        "required": [
-          "name",
-          "path",
-          "stagingUrl",
-          "stagingRef",
-          "testCommand"
-        ],
+        "required": ["name", "path", "stagingUrl", "stagingRef", "testCommand"],
         "additionalProperties": false
       }
     },

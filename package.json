@@ -23,8 +23,9 @@
     "dev": "tsx src/cli.tsx",
     "start": "node dist/cli.js",
     "pretest": "npm run build",
-    "format": "prettier --write src tests skills docs README.md package.json tsconfig.json",
-    "format:check": "prettier --check src tests skills docs README.md package.json tsconfig.json"
+    "format": "prettier --write . --ignore-unknown",
+    "format:check": "prettier --check . --ignore-unknown",
+    "prepare": "husky"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -42,6 +43,7 @@
     "@types/luxon": "^3.7.6",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
+    "husky": "^9.1.7",
     "ink-testing-library": "^4.0.0",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
