@@ -226,7 +226,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             justifyContent="space-between"
             flexShrink={0}
           >
-            <Box alignItems="center" gap={2}>
+            <Box alignItems="center" gap={1}>
               <Mascot />
               <Wordmark compact={columns < 80} />
             </Box>
