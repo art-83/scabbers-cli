@@ -1,3 +1,4 @@
+import type { AnalysisWorkspace } from "../development/abstractions/interface/analysis-workspace.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
 import type { Store } from "../storage/store.js";
@@ -41,6 +42,7 @@ export class SupportProcessor {
     private readonly slack: Messaging,
     private readonly decisions: DecisionService,
     private readonly jira: IssueTracker | undefined,
+    private readonly workspace?: AnalysisWorkspace,
   ) {
     this.workflow = new Workflow(store);
     this.effects = new Effects(store);
@@ -99,12 +101,31 @@ export class SupportProcessor {
         nolaKeys.map((key) => this.jira!.evidence(key)),
       );
       this.store.save(run);
+      if (this.config.repositories.length && !run.data.analysisWorkspaces) {
+        if (!this.workspace)
+          throw new Error(
+            "Pinned analysis workspace provider required for code investigation",
+          );
+        const paths = await this.workspace.prepareAnalysis(
+          run.id,
+          this.config.repositories,
+          signal,
+        );
+        run.data.analysisRevisions = await this.workspace.revisions(
+          paths,
+          signal,
+        );
+        run.data.analysisWorkspaces = paths;
+        this.store.save(run);
+      }
+      const analysisPaths = run.data.analysisWorkspaces as
+        Record<string, string> | undefined;
       const result = await this.executor.execute(
         run,
         "Investigate this complete report thread and verified Jira issues. Return a routing plan in data: {reportKey,type: Bug|Bug Crítico|Ticket|duplicate|cancel|product|insufficient,summary,description,evidence:string[],ambiguous:false,destinationKey?:string,cancellationReason?:string} only for an objective evidenced route. Duplicate requires an inspected open Bug and destinationKey; cancellation requires an evidenced reason matching live Jira metadata. Product keeps the Report open without creating an RFC. An active critical incident requires observable reach, urgency and workaround evidence. Behavior uncertainty or missing evidence requires status question and a precise private question with permitted options; do not infer confirmation. Do not copy private discussion into public output; use only the pertinent authorized conclusion. Do not create or modify issues. Existing triage is not ours to review. The configured owner may be assigned a confirmed Bug; assignment never grants development eligibility.",
         "nola-operations:report-triage",
         "read",
-        this.config.repositories[0]?.path ?? process.cwd(),
+        Object.values(analysisPaths ?? {})[0] ?? process.cwd(),
         signal,
       );
       if (result.status !== "passed") {

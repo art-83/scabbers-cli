@@ -85,11 +85,11 @@ export const configSchema = z.strictObject({
       z.strictObject({
         name: z.enum(["arccanet-backend", "arccanet-frontend", "arcca-pdv"]),
         path: z.string(),
-        stagingUrl: z.url(),
+        stagingUrl: z.url().optional(),
         stagingRef: z.literal("staging").default("staging"),
         baseBranch: z.string().trim().min(1).default("master"),
         gitlabProjectId: z.string().optional(),
-        testCommand: z.array(z.string()).min(1),
+        testCommand: z.array(z.string()).min(1).optional(),
       }),
     )
     .default([]),

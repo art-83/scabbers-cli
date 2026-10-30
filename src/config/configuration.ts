@@ -1,3 +1,4 @@
+import { RepositoryCatalog } from "./repository-catalog.js";
 import {
   chmodSync,
   existsSync,
@@ -87,6 +88,9 @@ export class Configuration {
       return config;
     }
     return this.validate({});
+  }
+  effective(): Config {
+    return new RepositoryCatalog().resolve(this.get());
   }
   save(input: unknown): Config {
     const config = this.validate(input);

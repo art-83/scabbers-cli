@@ -1,7 +1,8 @@
+import { RepositoryCatalog } from "./repository-catalog.js";
 import { soulFile } from "../profile/soul-file.js";
 import { reviewSoul } from "../profile/review-soul.js";
 import { discoverSkills } from "./discover-skills.js";
-import { basename, resolve } from "node:path";
+import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -114,46 +115,18 @@ export async function setup(store: Store, directory: string): Promise<void> {
         ),
       );
       const roots = await text(
-        "NOLA web project paths to analyze, comma separated (Enter to keep current/defer): ",
+        "Workspace roots or web repository paths, comma separated (Enter to keep current/defer): ",
       );
       if (roots.trim()) {
-        config.repositories = [];
-        for (const root of roots
+        config.paths = roots
           .split(",")
-          .map((path) => resolve(path.trim()))) {
-          const name = basename(root);
-          if (
-            !["arccanet-backend", "arccanet-frontend", "arcca-pdv"].includes(
-              name,
-            ) ||
-            !existsSync(root)
-          )
-            throw new Error(
-              "Select existing NOLA web repository directories by their real names",
-            );
-          const stagingUrl = await text(
-            `Actual staging endpoint for ${name}: `,
+          .map((path) => resolve(path.trim()))
+          .filter(Boolean);
+        const discovered = new RepositoryCatalog().resolve(config);
+        if (!discovered.repositories.length)
+          throw new Error(
+            "No supported NOLA web Git repositories found in the selected paths",
           );
-          const baseBranch =
-            (await text(`Remote base branch for ${name} [master]: `)).trim() ||
-            "master";
-          const argv = await text(
-            `Verified test command argv as JSON for ${name} (for example ["npm","test"]): `,
-          );
-          const projectId = await text(
-            `Verified GitLab project ID or group/project path for ${name}: `,
-          );
-          config.repositories.push({
-            name: name as
-              "arccanet-backend" | "arccanet-frontend" | "arcca-pdv",
-            path: root,
-            stagingUrl,
-            stagingRef: "staging",
-            baseBranch,
-            testCommand: JSON.parse(argv),
-            ...(projectId ? { gitlabProjectId: projectId } : {}),
-          });
-        }
       }
       const jiraEmail = await text(
         `Jira email [${config.jira?.email ?? "not configured"}] (Enter to keep/defer): `,

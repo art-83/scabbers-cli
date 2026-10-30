@@ -480,3 +480,108 @@ it("recognizes quota through the Claude browser SDK without overriding permissio
     ).execute({ ...input, mode: "browser", browserAuthorized: true }),
   ).rejects.toBeInstanceOf(NativeQuotaError);
 });
+
+it("carries family descriptions, current member and pinned workspaces into resumed and fresh feature sessions", async () => {
+  const f = fixture(false);
+  try {
+    const member = {
+      key: "SNOLA-CHILD",
+      fields: {
+        description: "COMPLETE_CHILD_ACCEPTANCE",
+        issuetype: { name: "Story" },
+        summary: "Child",
+        status: { name: "To Do" },
+      },
+    };
+    f.run.kind = "feature";
+    f.run.data.family = {
+      root: "PNOLA-EPIC",
+      digest: "fixture",
+      complete: true,
+      members: [member],
+      ancestors: [],
+    };
+    f.run.data.featureMember = member;
+    f.run.data.analysisWorkspaces = { "arccanet-frontend": "/pinned/frontend" };
+    f.run.data.analysisRevisions = { "arccanet-frontend": "pinned-commit" };
+    f.store.save(f.run);
+    f.add("codex", async (input) => {
+      const data = JSON.parse(
+        input.prompt.split("Task evidence (JSON):\n")[1]!,
+      );
+      expect(data.family.members[0].fields.description).toBe(
+        "COMPLETE_CHILD_ACCEPTANCE",
+      );
+      expect(data.featureMember.key).toBe("SNOLA-CHILD");
+      expect(data.analysisWorkspaces["arccanet-frontend"]).toBe(
+        "/pinned/frontend",
+      );
+      expect(data.analysisRevisions["arccanet-frontend"]).toBe("pinned-commit");
+      input.onSession("session");
+      return result;
+    });
+    await f.executor.execute(
+      f.run,
+      "Analyze",
+      "fixture",
+      "read",
+      f.directory,
+      new AbortController().signal,
+    );
+    await f.executor.execute(
+      f.run,
+      "Review",
+      "fixture",
+      "read",
+      f.directory,
+      new AbortController().signal,
+      true,
+    );
+  } finally {
+    f.close();
+  }
+});
+
+it("keeps the current full member while deferring oversized sibling descriptions", async () => {
+  const f = fixture(false);
+  try {
+    const members = Array.from({ length: 4 }, (_, i) => ({
+      key: `STORY-${i}`,
+      fields: {
+        description: "x".repeat(30000),
+        issuetype: { name: "Story" },
+        summary: "Child",
+        status: { name: "To Do" },
+      },
+    }));
+    f.run.kind = "feature";
+    f.run.data.family = {
+      root: "EPIC",
+      digest: "large",
+      complete: true,
+      members,
+      ancestors: [],
+    };
+    f.run.data.featureMember = members[0];
+    f.add("codex", async (input) => {
+      const data = JSON.parse(
+        input.prompt.split("Task evidence (JSON):\n")[1]!,
+      );
+      expect(data.family.descriptionsDeferred).toBe(true);
+      expect(data.family.members).toHaveLength(4);
+      expect(data.family.members[0].fields).toBeUndefined();
+      expect(data.featureMember.fields.description).toHaveLength(30000);
+      return result;
+    });
+    await f.executor.execute(
+      f.run,
+      "Analyze",
+      "fixture",
+      "read",
+      f.directory,
+      new AbortController().signal,
+    );
+  } finally {
+    f.close();
+  }
+});

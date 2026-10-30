@@ -149,3 +149,77 @@ it("persists a page cursor with a fixed upper bound and resumes beyond a failed 
     store.close();
   }
 });
+it("investigates support code in pinned remote analysis workspaces and reuses their revision on retry", async () => {
+  const store = new Store(":memory:");
+  try {
+    const run = store.create("support", "C:pin", "codex", "p", {
+      channel: "C",
+      thread: "1",
+      text: "SNOLA-99",
+    });
+    new Workflow(store).transition(run, "START");
+    const config = configSchema.parse({
+      repositories: [{ name: "arcca-pdv", path: "/dirty/user/checkout" }],
+    });
+    const workspace = {
+      prepareAnalysis: vi.fn(async () => ({ "arcca-pdv": "/pinned/master" })),
+      revisions: vi.fn(async () => ({
+        "arcca-pdv": "commit-from-origin-master",
+      })),
+    };
+    const executor = {
+      execute: vi.fn(async (current, _instruction, _skill, _mode, cwd) => {
+        expect(cwd).toBe("/pinned/master");
+        expect(current.data.analysisRevisions["arcca-pdv"]).toBe(
+          "commit-from-origin-master",
+        );
+        return {
+          status: "passed",
+          summary: "Observed",
+          evidence: ["code"],
+          question: null,
+          options: [],
+          data: {
+            reportKey: "SNOLA-99",
+            type: "Bug",
+            summary: "Bug",
+            description:
+              "A verified regression with direct repository evidence",
+            evidence: ["code"],
+            ambiguous: false,
+          },
+        };
+      }),
+    };
+    const processor = new SupportProcessor(
+      store,
+      config,
+      executor as never,
+      { replies: async () => [{ ts: "1", text: "SNOLA-99" }] } as never,
+      {} as never,
+      {
+        evidence: async () => ({
+          key: "SNOLA-99",
+          fields: { issuetype: { name: "Report" } },
+        }),
+      } as never,
+      workspace,
+    );
+    executor.execute.mockRejectedValueOnce(
+      new Error("temporary engine failure"),
+    );
+    await expect(
+      processor.process(run, new AbortController().signal),
+    ).rejects.toThrow("temporary engine failure");
+    expect(workspace.prepareAnalysis).toHaveBeenCalledWith(
+      run.id,
+      config.repositories,
+      expect.any(AbortSignal),
+    );
+    expect(workspace.prepareAnalysis).toHaveBeenCalledTimes(1);
+    await processor.process(run, new AbortController().signal);
+    expect(workspace.prepareAnalysis).toHaveBeenCalledTimes(1);
+  } finally {
+    store.close();
+  }
+});

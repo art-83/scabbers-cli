@@ -111,7 +111,9 @@ export class DevelopmentProcessor {
   private async development(run: Run, signal: AbortSignal): Promise<void> {
     const cwd = this.config.repositories[0]?.path;
     if (!cwd)
-      throw new Error("Configure NOLA web repositories and staging endpoints");
+      throw new Error(
+        "Configure repository discovery paths or explicit NOLA web repositories",
+      );
     if (run.state === "investigating") {
       if (!run.data.analysisWorkspaces) {
         // Preserve older in-flight checkpoints instead of replacing their code base.
@@ -549,7 +551,11 @@ export class DevelopmentProcessor {
     if (run.state === "e2e") {
       const endpoints = this.config.repositories
         .filter((r) => form.repositories.includes(r.name))
-        .map((r) => r.stagingUrl);
+        .map((r) => {
+          if (!r.stagingUrl)
+            throw new Error(`Verified staging URL required for ${r.name}`);
+          return r.stagingUrl;
+        });
       const origins = browserOrigins(endpoints);
       if (!origins.length)
         throw new Error(
@@ -676,6 +682,8 @@ export class DevelopmentProcessor {
         token,
       );
       evidence[name] = await client.readiness(publication.revision, "staging");
+      if (!repository.stagingUrl)
+        throw new Error(`Verified staging URL required for ${name}`);
       const response = await fetch(repository.stagingUrl, {
         method: "HEAD",
         redirect: "error",
@@ -697,6 +705,10 @@ export class DevelopmentProcessor {
     const results = [];
     for (const [name, path] of Object.entries(paths)) {
       const repo = this.config.repositories.find((r) => r.name === name)!;
+      if (!repo.testCommand)
+        throw new Error(
+          `Verified test command required for ${name}; configure its repository override`,
+        );
       const [command, ...args] = repo.testCommand;
       const result = await this.process.run(
         command!,

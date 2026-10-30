@@ -64,7 +64,7 @@ export async function daemon(directory: string): Promise<void> {
   const store = new Store(join(directory, "scabbers.db"));
   store.db.exec("DELETE FROM locks");
   const configuration = new Configuration(store);
-  let config = configuration.get();
+  let config = configuration.effective();
   let integrations = pendingHealth();
   let healthBusy = false,
     nextHealthCheck = 0;
@@ -183,7 +183,7 @@ export async function daemon(directory: string): Promise<void> {
             input.digest !== activationDigest() ||
             input.digest !==
               createHash("sha256")
-                .update(JSON.stringify(configuration.get()))
+                .update(JSON.stringify(configuration.effective()))
                 .digest("hex")
           )
             throw new Error("Settings changed; review activation again");
@@ -376,7 +376,7 @@ export async function daemon(directory: string): Promise<void> {
     try {
       let loaded;
       try {
-        loaded = configuration.get();
+        loaded = configuration.effective();
         settingsError = null;
       } catch (error) {
         settingsError =

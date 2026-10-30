@@ -121,7 +121,7 @@ async function main(): Promise<void> {
     return;
   }
   if (process.argv.includes("--doctor")) {
-    const config = configuration.get();
+    const config = configuration.effective();
     const active = store.getSetting("active-profile");
     const probe = async (command: string) => {
       try {

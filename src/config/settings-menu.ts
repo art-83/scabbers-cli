@@ -1,3 +1,4 @@
+import { RepositoryCatalog } from "./repository-catalog.js";
 import type { SettingsSection } from "./types/settings-section.js";
 import type { Prompts } from "./types/settings-prompts.js";
 import type { Field } from "./types/settings-field.js";
@@ -30,6 +31,16 @@ export function settingsItems(
   const config = configSchema.parse(
     migrateBrowser(migrateSchedule(JSON.parse(readFileSync(path, "utf8")))),
   );
+  let catalog = "discovery pending";
+  try {
+    catalog =
+      new RepositoryCatalog()
+        .resolve(config)
+        .repositories.map((repo) => repo.name)
+        .join(", ") || "none discovered";
+  } catch {
+    catalog = "check workspace paths";
+  }
   return [
     { key: "engine", label: `Engine: ${config.engine}` },
     { key: "models", label: "Models, reasoning effort and quota fallback" },
@@ -40,7 +51,7 @@ export function settingsItems(
     },
     {
       key: "paths",
-      label: `Workspace directories: ${config.paths.length} configured`,
+      label: `Workspace directories: ${config.paths.length} · ${catalog}`,
     },
     { key: "slack", label: "Slack · connection and authentication" },
     { key: "jira", label: "Jira · connection and authentication" },
@@ -434,7 +445,7 @@ export async function configureSetting(
         [
           {
             key: "repositories",
-            label: "Development repositories (JSON array)",
+            label: "Repository overrides · staging/test metadata (JSON array)",
             kind: "json",
           },
           {

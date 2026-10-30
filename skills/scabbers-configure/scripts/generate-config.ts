@@ -105,9 +105,9 @@ async function main(): Promise<void> {
     );
   if (!config.gitlab)
     unresolved.add("gitlab: verified project connection required");
-  if (!config.repositories.length)
+  if (!config.repositories.length && !config.paths.length)
     unresolved.add(
-      "repositories: select web repositories with verified staging endpoints and test argv",
+      "paths: select a workspace root for repository discovery; staging endpoints and test argv are required only for delivery",
     );
   if (!Object.keys(config.skillPaths).length)
     unresolved.add(

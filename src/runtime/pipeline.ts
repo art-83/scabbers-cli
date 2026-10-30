@@ -1,3 +1,4 @@
+import { Workspace } from "../development/workspace.js";
 import { SupportProcessor } from "../support/support-processor.js";
 import { DevelopmentProcessor } from "../development/development-processor.js";
 import type { Store } from "../storage/store.js";
@@ -31,6 +32,7 @@ export class Pipeline {
       slack,
       decisions,
       jira,
+      new Workspace(directory),
     );
     this.development = new DevelopmentProcessor(
       store,

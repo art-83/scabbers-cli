@@ -421,14 +421,7 @@
             }
           }
         },
-        "required": [
-          "name",
-          "path",
-          "stagingUrl",
-          "stagingRef",
-          "baseBranch",
-          "testCommand"
-        ],
+        "required": ["name", "path", "stagingRef", "baseBranch"],
         "additionalProperties": false
       }
     },

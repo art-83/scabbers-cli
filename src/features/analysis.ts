@@ -99,7 +99,7 @@ export class FeatureAnalysis {
       this.store.save(run);
       const result = await this.executor.execute(
         run,
-        "Only scopeMembers may be implemented; all other cards are context and must retain their behavior, assignee and status. Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities. Do not edit. Return data:{key,summary,acceptance:string[],approach,dependencies:string[]}; do not invent requirements. Missing decisions => question.",
+        "Only scopeMembers may be implemented; all other cards are context and must retain their behavior, assignee and status. Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities for featureMember only. Other family members are summarized here and will each receive a separate full-description analysis. Do not ask the human to copy sibling descriptions merely because this step provides only their summaries. Defer cross-member acceptance synthesis until all saved member analyses are available. Do not edit. Return data:{key,summary,acceptance:string[],approach,dependencies:string[]}; do not invent requirements. Missing decisions => question.",
         "nola-engineering:solution-analysis",
         "read",
         cwd,
