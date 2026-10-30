@@ -1,3 +1,4 @@
+import { LOG_RETENTION_DAYS } from "../logging/text-log.js";
 import { soulFile } from "../profile/soul-file.js";
 import { BrowserSession } from "../browser/session.js";
 import { checkIntegrations, pendingHealth } from "../integrations/health.js";
@@ -84,6 +85,11 @@ export async function daemon(directory: string): Promise<void> {
             settingsPending,
             settingsError,
             integrations,
+            logging: {
+              directory: store.textLog?.directory,
+              retentionDays: LOG_RETENTION_DAYS,
+              error: store.loggingError,
+            },
             browserDiagnostic: store.getSetting("browser-diagnostic") ?? null,
             remoteEnabled: config.remoteEnabled,
             engine: config.engine,
@@ -183,6 +189,7 @@ export async function daemon(directory: string): Promise<void> {
   const shutdown = () => {
     if (stopping) return;
     stopping = true;
+    store.log(null, "Runtime shutdown requested; interrupting active stages");
     clearInterval(timer);
     pool?.shutdown();
     void socket?.stop();
@@ -199,6 +206,10 @@ export async function daemon(directory: string): Promise<void> {
     server.once("error", reject);
     server.listen(socketPath, () => {
       chmodSync(socketPath, 0o600);
+      store.log(
+        null,
+        `Runtime started (pid ${process.pid}); automation ${config.remoteEnabled ? "active" : "off"}`,
+      );
       resolve();
     });
   });

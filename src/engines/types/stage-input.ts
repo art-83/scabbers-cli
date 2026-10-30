@@ -11,5 +11,6 @@ export type StageInput = {
   directories?: string[];
   readDirectories?: string[];
   onProcess?: (pid: number) => void;
+  onActivity?: (message: string) => void;
   signal?: AbortSignal;
 };

@@ -5,6 +5,7 @@ export type View = {
   browserDiagnostic?: BrowserDiagnostic | null;
   integrations?: IntegrationHealth[];
   settingsFile?: string;
+  logging?: { directory?: string; retentionDays: number; error: string | null };
   soulFile?: string;
   settingsPending?: boolean;
   settingsError?: string | null;

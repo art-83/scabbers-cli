@@ -10,6 +10,7 @@ export class ProcessRunner {
     timeout = 600_000,
     onProcess?: (pid: number) => void,
     environment: NodeJS.ProcessEnv = process.env,
+    onStderr?: (line: string) => void,
   ): Promise<{ stdout: string; code: number }> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
@@ -20,6 +21,7 @@ export class ProcessRunner {
       });
       let stdout = "",
         buffer = "",
+        stderrBuffer = "",
         bytes = 0,
         settled = false;
       let failure: string | undefined;
@@ -75,7 +77,31 @@ export class ProcessRunner {
           }
         }
       });
-      child.stderr.on("data", () => {});
+      const emitErrorLine = (line: string) => {
+        try {
+          onStderr?.(line.slice(0, 16000));
+        } catch {
+          fail("Cannot record process diagnostics");
+        }
+      };
+      child.stderr.on("data", (chunk: Buffer) => {
+        if (!onStderr) return;
+        bytes += chunk.length;
+        if (bytes > 8_000_000) {
+          fail("Process output limit exceeded");
+          return;
+        }
+        stderrBuffer += chunk.toString();
+        let index;
+        while ((index = stderrBuffer.indexOf("\n")) >= 0) {
+          emitErrorLine(stderrBuffer.slice(0, index));
+          stderrBuffer = stderrBuffer.slice(index + 1);
+        }
+        if (stderrBuffer.length > 16000) {
+          emitErrorLine(stderrBuffer);
+          stderrBuffer = "";
+        }
+      });
       child.on("error", () => {
         clearTimeout(timer);
         if (!settled) {
@@ -84,6 +110,7 @@ export class ProcessRunner {
         }
       });
       child.on("close", (code) => {
+        if (stderrBuffer) emitErrorLine(stderrBuffer);
         clearTimeout(timer);
         if (killTimer) clearTimeout(killTimer);
         signal?.removeEventListener("abort", abort);

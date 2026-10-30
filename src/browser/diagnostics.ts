@@ -51,6 +51,10 @@ export async function checkNativeBrowser(
         : null,
   };
   store.setSetting("browser-diagnostic", diagnostic);
+  store.log(
+    null,
+    `Browser diagnostic: starting ${config.engine} read-only check for ${origin}`,
+  );
   const browser = new BrowserSession(config.browser, store);
   const adapter =
     engine ??
@@ -69,6 +73,8 @@ export async function checkNativeBrowser(
       browserAuthorized: true,
       allowedOrigins: [origin],
       signal: controller.signal,
+      onActivity: (message) =>
+        store.log(null, `Browser diagnostic · ${config.engine}: ${message}`),
       onSession: (sessionId) => {
         diagnostic.sessionId = sessionId;
         store.setSetting("browser-diagnostic", diagnostic);
@@ -85,7 +91,11 @@ export async function checkNativeBrowser(
       summary: result.summary,
       checkedAt: Date.now(),
     };
-  } catch {
+  } catch (error) {
+    store.log(
+      null,
+      `Browser diagnostic failed: ${error instanceof Error ? error.message : "unknown failure"}`,
+    );
     diagnostic = {
       ...diagnostic,
       status: "blocked",
@@ -96,6 +106,10 @@ export async function checkNativeBrowser(
   } finally {
     clearTimeout(timer);
   }
+  store.log(
+    null,
+    `Browser diagnostic ${diagnostic.status}: ${diagnostic.summary}`,
+  );
   delete diagnostic.processId;
   store.setSetting("browser-diagnostic", diagnostic);
   return diagnostic;

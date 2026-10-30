@@ -1,12 +1,12 @@
 # Verification record
 
-Delivery review date: **2026-10-30**. Worktree: `/home/arthur-nicolas/.codex/worktrees/1376/scabbers-cli`.
+Delivery review date: **2026-10-30**. Checkout: `/home/arthur-nicolas/Projects/scabbers-cli`.
 
 ## Automated local checks
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **61 tests in 19 files** and covers:
+The final suite contains **70 tests in 20 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -69,3 +69,5 @@ A subsequent real Claude check reused its staging tab, captured the home page, o
 The SOUL source resolver defaults to the selected settings directory, regardless of workspace `paths`, while preserving explicit `soulFile` overrides. An isolated invocation of the actual skill helper verified private source creation beside settings.json, preservation of unrelated workspace profiles and no automatic proposal activation.
 
 Fresh-base verification uses real local bare remotes: upstream changes made after cloning appear in new detached analysis worktrees, while dirty source files and the user branch remain unchanged. Retries and post-JEV branch creation preserve the pinned revision even after upstream advances. Explicit `main` bases work; unavailable remotes block new preparation despite cached refs. The development fixture asserts that investigation runs in the detached worktree before eligibility.
+
+Plaintext logging verification covers private file permissions, per-run timestamps, credential redaction, split private-key output, daily rotation and 30-day cleanup boundaries. It preserves unrelated files, symlinks, run state and approved profiles. A failed text sink leaves SQLite diagnostics available and recovers on a later write. A real CLI subprocess reads logs without creating a runtime socket/PID or requiring settings; process-runner fixtures also verify final unterminated stderr output. These tests use private temporary directories and do not start the user's runtime.

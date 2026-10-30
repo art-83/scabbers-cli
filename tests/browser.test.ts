@@ -104,6 +104,7 @@ it("records a visible blocked diagnostic and resumes the same native session for
   });
   const execute = vi.fn(async (input: StageInput) => {
     input.onSession("fixture-native-session");
+    input.onActivity?.("Tool requested: read_page");
     return {
       status: "question",
       summary: "Native origin approval refused",
@@ -118,6 +119,10 @@ it("records a visible blocked diagnostic and resumes the same native session for
       execute,
     } as unknown as Engine);
     expect(first.status).toBe("blocked");
+    expect(store.logs(null).join("\n")).toContain("Tool requested: read_page");
+    expect(store.logs(null).join("\n")).toContain(
+      "Native origin approval refused",
+    );
     expect(store.getSetting("browser-diagnostic")).toMatchObject({
       summary: "Native origin approval refused",
       sessionId: "fixture-native-session",

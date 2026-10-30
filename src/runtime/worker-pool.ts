@@ -45,6 +45,7 @@ export class WorkerPool {
       if (!this.store.acquire(resource, run.id)) continue;
       const controller = new AbortController();
       this.active.set(run.id, controller);
+      this.store.log(run.id, `${run.kind} · ${run.state}: worker started`);
       void this.step(run, controller.signal)
         .catch(async (error) => {
           const current = this.store.get(run.id);
@@ -52,7 +53,12 @@ export class WorkerPool {
             current.error =
               error instanceof Error ? error.message : "Stage failed";
             this.store.save(current);
-            this.store.log(run.id, current.error!);
+            this.store.log(
+              run.id,
+              error instanceof Error
+                ? (error.stack ?? current.error!)
+                : current.error!,
+            );
             if (!current.paused && this.onFailure) {
               try {
                 current.data.blockerDecision = await this.onFailure(
@@ -77,6 +83,7 @@ export class WorkerPool {
   }
   control(id: string, action: "pause" | "resume" | "cancel"): void {
     const run = this.store.get(id);
+    this.store.log(id, `Execution control: ${action}`);
     if (["done", "handoff", "cancelled"].includes(run.state)) return;
     if (action === "resume") {
       if (this.active.has(id))

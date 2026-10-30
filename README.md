@@ -76,6 +76,18 @@ A non-interactive launch prints status. The footer keeps shortcuts at the bottom
 
 The visible names **Bug Triage** and **Bug Fix** identify the existing support and bug-correction workflows. Persisted run kinds (`support` and `development`), XState machine identities and handoff rules remain unchanged; this is a display rename, not a state migration. A separate **Development** workflow for tasks, stories and decomposed epics is planned in the [backlog](tasks/002-development-tasks-and-epics.md). It is not an active tab and does not reuse the bug-only JEV criteria.
 
+## Diagnostic logs
+
+Scabbers writes readable daily logs to `~/.local/state/scabbers/logs/scabbers-YYYY-MM-DD.log` (or `SCABBERS_HOME/logs`). Each line identifies its UTC time and execution. Logs include stage transitions, visible engine messages, available tool activity, test output, decisions received and failures. They are operational diagnostics, not a complete native conversation transcript: hidden reasoning, raw prompts and full tool payloads are not collected. Claude's non-browser CLI path exposes its final result rather than intermediate tool events.
+
+```sh
+scabbers --logs
+```
+
+This displays the last 100 lines of the newest daily file without starting the runtime or requiring valid settings. Config shows the log directory, retention and any text-storage failure. Files use owner-only permissions and redact common credential patterns; diagnostics can still contain application data and should be reviewed before sharing.
+
+Daily files and SQLite diagnostic rows expire after 30 days. Cleanup runs on startup and during use; it does not run while Scabbers is stopped. Run snapshots, decisions and profile evidence are preserved. If text-file writing fails, SQLite logging continues and Config reports the storage problem. Existing legacy `runtime.log` files are left untouched; the CLI no longer appends to them.
+
 ## Runtime architecture
 
 ```mermaid

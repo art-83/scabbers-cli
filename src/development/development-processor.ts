@@ -579,7 +579,7 @@ export class DevelopmentProcessor {
     return evidence;
   }
   private async tests(
-    _run: Run,
+    run: Run,
     paths: Record<string, string>,
     signal: AbortSignal,
   ): Promise<{ repository: string; code: number; stdout: string }[]> {
@@ -592,9 +592,14 @@ export class DevelopmentProcessor {
         args,
         path,
         "",
-        () => {},
+        (line) => this.store.log(run.id, `Tests ${name}: ${line}`),
         signal,
+        undefined,
+        undefined,
+        undefined,
+        (line) => this.store.log(run.id, `Tests ${name} stderr: ${line}`),
       );
+      this.store.log(run.id, `Tests ${name}: exited ${result.code}`);
       results.push({ repository: name, ...result });
     }
     return results;

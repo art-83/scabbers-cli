@@ -77,6 +77,31 @@ export class CodexEngine implements Engine {
         }),
       (line) => {
         const event = JSON.parse(line);
+        if (
+          event.type === "item.completed" &&
+          event.item?.type === "agent_message"
+        )
+          input.onActivity?.("Assistant: " + event.item.text);
+        if (
+          ["item.started", "item.completed"].includes(event.type) &&
+          ["command_execution", "mcp_tool_call"].includes(event.item?.type)
+        ) {
+          input.onActivity?.(
+            `${event.type}: ${event.item.type} ${event.item.tool ?? event.item.command ?? ""}`,
+          );
+          if (
+            event.item.type === "command_execution" &&
+            event.item.aggregated_output
+          )
+            input.onActivity?.(
+              "Command output: " + event.item.aggregated_output,
+            );
+        }
+        if (event.type === "error" || event.type === "turn.failed")
+          input.onActivity?.(
+            "Engine error: " +
+              JSON.stringify(event.error ?? event.message ?? "failed"),
+          );
         if (event.type === "thread.started") {
           if (session && session !== event.thread_id)
             throw new Error("Session mismatch");
@@ -93,6 +118,7 @@ export class CodexEngine implements Engine {
       600_000,
       input.onProcess,
       native?.environment ?? engineEnvironment(),
+      (line) => input.onActivity?.("stderr: " + line),
     );
     if (result.code || !session)
       throw new Error("Codex failed; inspect saved session before retry");

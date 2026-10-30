@@ -346,6 +346,15 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                 Configuration
               </Text>
               {view?.soulFile && <Text dimColor>SOUL: {view.soulFile}</Text>}
+              {view?.logging && (
+                <Text dimColor>
+                  Text logs: {view.logging.directory} ·{" "}
+                  {view.logging.retentionDays} days
+                </Text>
+              )}
+              {view?.logging?.error && (
+                <Text color="red">{view.logging.error}</Text>
+              )}
               <Text dimColor>
                 ↑/↓ Select a setting · Enter Edit · save or discard in the menu
               </Text>

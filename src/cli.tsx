@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { TextLog, redactLog } from "./logging/text-log.js";
 import { soulFile } from "./profile/soul-file.js";
 import { Soul } from "./profile/soul.js";
 import { reviewSoul } from "./profile/review-soul.js";
@@ -7,7 +8,7 @@ import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { openSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stateDirectory } from "./config/configuration.js";
@@ -17,7 +18,7 @@ import { setup } from "./config/setup.js";
 import { daemon } from "./runtime/daemon.js";
 import { request } from "./runtime/client.js";
 import { App } from "./tui/app.js";
-const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
+const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --logs           Show recent text logs without starting the runtime\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
 async function main(): Promise<void> {
   if (
     process.stdin.isTTY &&
@@ -30,7 +31,25 @@ async function main(): Promise<void> {
     return;
   }
   const directory = stateDirectory();
+  if (process.argv.includes("--logs")) {
+    const log = new TextLog(join(directory, "logs"));
+    console.log(
+      `Text logs: ${log.directory} (30-day retention)\n${log.tail()}`,
+    );
+    return;
+  }
   if (process.argv.includes("--daemon")) {
+    const log = new TextLog(join(directory, "logs"));
+    process.on("uncaughtExceptionMonitor", (error) => {
+      try {
+        log.write("Uncaught runtime failure: " + error.stack);
+      } catch {}
+    });
+    process.on("warning", (warning) => {
+      try {
+        log.write(`Node warning: ${warning.name}: ${warning.message}`);
+      } catch {}
+    });
     await daemon(directory);
     return;
   }
@@ -174,11 +193,17 @@ async function main(): Promise<void> {
   try {
     await request(directory, { action: "status" });
   } catch {
-    const log = openSync(join(directory, "runtime.log"), "a", 0o600);
+    try {
+      new TextLog(join(directory, "logs")).write("Starting detached runtime");
+    } catch {
+      console.warn(
+        "Text logs unavailable; check Config for log storage diagnostics.",
+      );
+    }
     const child = spawn(
       process.execPath,
       [...process.execArgv, fileURLToPath(import.meta.url), "--daemon"],
-      { detached: true, stdio: ["ignore", log, log], env: process.env },
+      { detached: true, stdio: "ignore", env: process.env },
     );
     child.unref();
     let connected = false;
@@ -192,7 +217,7 @@ async function main(): Promise<void> {
     }
     if (!connected)
       throw new Error(
-        "Runtime did not start. Inspect " + join(directory, "runtime.log"),
+        "Runtime did not start. Inspect " + join(directory, "logs"),
       );
   }
   if (!process.stdin.isTTY) {
@@ -204,6 +229,17 @@ async function main(): Promise<void> {
   await render(<App directory={directory} />).waitUntilExit();
 }
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : "Scabbers failed");
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : "Scabbers failed";
+  if (process.argv.includes("--daemon")) {
+    try {
+      new TextLog(join(stateDirectory(), "logs")).write(
+        "Runtime failure: " + message,
+      );
+    } catch {}
+  }
+  console.error(
+    redactLog(error instanceof Error ? error.message : "Scabbers failed"),
+  );
   process.exitCode = 1;
 });

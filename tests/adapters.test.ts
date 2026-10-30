@@ -95,6 +95,46 @@ describe("Native engine contracts", () => {
       "--dangerously-bypass-approvals-and-sandbox",
     );
   });
+  it("records visible Codex activity without recording reasoning events", async () => {
+    const activity: string[] = [];
+    const runner = {
+      run: vi.fn(async (_c, _a, _d, _p, line) => {
+        for (const event of [
+          { type: "thread.started", thread_id: "fixture-thread" },
+          {
+            type: "item.completed",
+            item: { type: "reasoning", text: "private reasoning fixture" },
+          },
+          {
+            type: "item.started",
+            item: { type: "mcp_tool_call", tool: "read_page" },
+          },
+          {
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command: "npm test",
+              aggregated_output: "Regression test passed",
+            },
+          },
+          {
+            type: "item.completed",
+            item: { type: "agent_message", text: JSON.stringify(result) },
+          },
+        ])
+          line(JSON.stringify(event));
+        return { code: 0, stdout: "" };
+      }),
+    };
+    await new CodexEngine(runner as never).execute({
+      ...input,
+      onActivity: (line) => activity.push(line),
+    });
+    expect(activity.join("\n")).toContain("read_page");
+    expect(activity.join("\n")).toContain("Regression test passed");
+    expect(activity.join("\n")).toContain("Assistant:");
+    expect(activity.join("\n")).not.toContain("private reasoning fixture");
+  });
   it("does not silently replace a resumed Codex conversation", async () => {
     const runner = {
       run: vi.fn(async (_c, _a, _d, _p, line) => {

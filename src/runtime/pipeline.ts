@@ -54,6 +54,7 @@ export class Pipeline {
         answer: decision.answer,
       };
       run.data.lastDecision = decision.id;
+      this.store.log(run.id, "Authenticated owner decision received");
       this.store.save(run);
     }
     if (run.state === "waiting") {

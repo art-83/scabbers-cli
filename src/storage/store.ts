@@ -1,9 +1,24 @@
+import { dirname, join, resolve } from "node:path";
+import {
+  TextLog,
+  redactLog,
+  LogRedactor,
+  LOG_RETENTION_DAYS,
+} from "../logging/text-log.js";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Run, RunKind } from "../workflows/types/run.js";
 export class Store {
   readonly db: DatabaseSync;
+  readonly textLog: TextLog | undefined;
+  loggingError: string | null = null;
+  private lastLogCleanup = 0;
+  private readonly logRedactor = new LogRedactor();
   constructor(path: string) {
+    this.textLog =
+      path === ":memory:"
+        ? undefined
+        : new TextLog(join(dirname(resolve(path)), "logs"));
     this.db = new DatabaseSync(path);
     const version = Number(
       this.db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
@@ -39,6 +54,22 @@ export class Store {
    CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,decisionId TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS profiles(version TEXT PRIMARY KEY,content TEXT NOT NULL,evidence TEXT NOT NULL,approved INTEGER NOT NULL DEFAULT 0,createdAt INTEGER NOT NULL);
    PRAGMA user_version=1;`);
+    this.cleanLogs();
+  }
+  private cleanLogs(): void {
+    const now = Date.now();
+    if (now - this.lastLogCleanup < 3600000) return;
+    this.db
+      .prepare("DELETE FROM logs WHERE at < ?")
+      .run(now - LOG_RETENTION_DAYS * 86400000);
+    try {
+      this.textLog?.cleanup();
+      this.loggingError = null;
+    } catch {
+      this.loggingError =
+        "Cannot maintain text logs; check state directory permissions and free disk space";
+    }
+    this.lastLogCleanup = now;
   }
   transaction<T>(operation: () => T): T {
     this.db.exec("BEGIN IMMEDIATE");
@@ -72,7 +103,7 @@ export class Store {
     data: Record<string, unknown>,
   ): Run {
     const now = Date.now();
-    this.db
+    const inserted = this.db
       .prepare(
         "INSERT OR IGNORE INTO runs(id,kind,source,engine,profileVersion,data,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)",
       )
@@ -86,7 +117,12 @@ export class Store {
         now,
         now,
       );
-    return this.list().find((r) => r.kind === kind && r.source === source)!;
+    const run = this.list().find(
+      (r) => r.kind === kind && r.source === source,
+    )!;
+    if (inserted.changes)
+      this.log(run.id, `Created ${kind} execution from ${source}`);
+    return run;
   }
   list(): Run[] {
     return this.db
@@ -119,9 +155,22 @@ export class Store {
       );
   }
   log(id: string | null, message: string): void {
+    this.cleanLogs();
+    const redacted = this.logRedactor.redact(message, id ?? "runtime");
+    const safe =
+      redacted.length > 16000
+        ? redacted.slice(0, 15900) + "\n[message truncated]"
+        : redacted;
     this.db
       .prepare("INSERT INTO logs(runId,at,message) VALUES(?,?,?)")
-      .run(id, Date.now(), message);
+      .run(id, Date.now(), safe);
+    try {
+      this.textLog?.write(safe, id);
+      this.loggingError = null;
+    } catch {
+      this.loggingError =
+        "Cannot write text logs; SQLite logs remain available. Check permissions and free disk space";
+    }
   }
   logs(id: string | null, limit = 12): string[] {
     return this.db
@@ -130,7 +179,7 @@ export class Store {
       )
       .all(id, limit)
       .reverse()
-      .map((r) => String(r.message));
+      .map((r) => redactLog(String(r.message)));
   }
   acquire(resource: string, owner: string): boolean {
     return (

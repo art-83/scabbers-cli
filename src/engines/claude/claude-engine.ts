@@ -59,6 +59,7 @@ export class ClaudeEngine implements Engine {
           })(),
           cwd: input.cwd,
           env: engineEnvironment(),
+          stderr: (line) => input.onActivity?.("stderr: " + line),
           abortController: controller,
           ...(input.sessionId ? { resume: session } : { sessionId: session }),
           additionalDirectories: [
@@ -101,6 +102,16 @@ export class ClaudeEngine implements Engine {
         },
       });
       for await (const message of messages) {
+        if (message.type === "assistant") {
+          for (const block of message.message.content) {
+            if (block.type === "text")
+              input.onActivity?.("Assistant: " + block.text);
+            if (block.type === "tool_use")
+              input.onActivity?.("Tool requested: " + block.name);
+          }
+        }
+        if (message.type === "result")
+          input.onActivity?.("Native result: " + message.subtype);
         if ("session_id" in message && message.session_id !== session)
           throw new Error("Claude did not confirm the saved native session");
         if (message.type === "result") {
@@ -180,10 +191,15 @@ export class ClaudeEngine implements Engine {
       600_000,
       input.onProcess,
       engineEnvironment(),
+      (line) => input.onActivity?.("stderr: " + line),
     );
     if (result.code !== 0)
       throw new Error("Claude failed; native session preserved for recovery");
     const raw = JSON.parse(result.stdout);
+    input.onActivity?.(
+      "Native result: " +
+        JSON.stringify(raw.structured_output ?? raw.result ?? raw.is_error),
+    );
     if (raw.session_id !== session || raw.is_error)
       throw new Error("Claude did not confirm the saved native session");
     return stageResultSchema.parse(
