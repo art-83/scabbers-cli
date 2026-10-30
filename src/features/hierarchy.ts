@@ -34,6 +34,7 @@ export class Hierarchy {
                 description: f.description,
                 type: f.issuetype,
                 parent: f.parent?.key,
+                assignee: f.assignee?.accountId ?? null,
                 labels: f.labels,
                 links: f.issuelinks,
                 comments: (f.allComments ?? [])

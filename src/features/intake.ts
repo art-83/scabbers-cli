@@ -1,3 +1,4 @@
+import { AssigneePolicy } from "./assignee-policy.js";
 import { EngineeringWorkflow } from "../development/engineering-workflow.js";
 import type { Family } from "./types/family.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -23,13 +24,15 @@ export class FeatureIntake {
           board: config.development.boardId,
           column: config.development.column,
           workflowStatuses: config.development.workflowStatuses,
-          policy: "engineering-epic-context-v2",
+          accountId: config.jira?.accountId,
+          policy: "mandatory-assignee-scope-v3",
         }),
       )
       .digest("hex");
   }
 
   private readonly hierarchy: Hierarchy;
+  private readonly assignee: AssigneePolicy;
   constructor(
     private readonly store: Store,
     private readonly config: Config,
@@ -37,6 +40,7 @@ export class FeatureIntake {
     private readonly profile?: () => ProfileSnapshot,
   ) {
     this.hierarchy = new Hierarchy(jira);
+    this.assignee = new AssigneePolicy(config.jira?.accountId);
   }
   async advance(
     previewOnly = true,
@@ -112,7 +116,7 @@ export class FeatureIntake {
             state.board.statusIds.some((id) => !/^\d+$/.test(id))
           )
             throw new Error("Invalid board metadata");
-          state.jql = `filter = ${state.board.filterId} AND status IN (${state.board.statusIds.join(", ")}) ORDER BY priority DESC, key ASC`;
+          state.jql = `filter = ${state.board.filterId} AND status IN (${state.board.statusIds.join(", ")}) AND assignee = ${JSON.stringify(this.assignee.accountId)} ORDER BY priority DESC, key ASC`;
         } else if (state.discovery) {
           try {
             await this.hierarchy.step(state.discovery);
@@ -141,7 +145,13 @@ export class FeatureIntake {
               state.families.push(family);
             const blocker = new FamilyPolicy(
               new EngineeringWorkflow(this.config.development.workflowStatuses),
-            ).blocker(family);
+            ).blocker(
+              family,
+              [],
+              family.members
+                .filter((i) => this.assignee.owns(i))
+                .map((i) => i.key),
+            );
             if (blocker)
               state.excluded.push({ key: family.root, reason: blocker });
             else if (!previewOnly && !this.stopping) this.enqueue(family);
@@ -157,11 +167,14 @@ export class FeatureIntake {
         } else if (!state.lastPage) {
           const page = await this.jira.searchPage(state.jql!, state.token);
           for (const issue of page.issues) {
-            if (new JiraCard(issue).isFeature) state.pending.push(issue.key);
+            if (new JiraCard(issue).isFeature && this.assignee.owns(issue))
+              state.pending.push(issue.key);
             else
               state.excluded.push({
                 key: issue.key,
-                reason: `Not a feature type: ${issue.fields.issuetype.name}`,
+                reason: !this.assignee.owns(issue)
+                  ? "Not assigned to the configured Jira owner"
+                  : `Not a feature type: ${issue.fields.issuetype.name}`,
               });
           }
           state.lastPage = page.isLast;
@@ -236,6 +249,7 @@ export class FeatureIntake {
       const scope = family.members
         .filter(
           (i) =>
+            this.assignee.owns(i) &&
             !new JiraCard(i).isDone &&
             !new JiraCard(i).isEpic &&
             new EngineeringWorkflow(

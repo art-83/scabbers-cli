@@ -141,3 +141,9 @@ Fallback does not authorize new tools, sites or publication. Authentication erro
 The default `development.workflowStatuses` are To Do, Open (mapped into the board’s To Do column), Analysis, Solution Analysis, In Progress, Docs & Tests and Ready for Code Review. These form a hard maximum for feature transitions. Configuration can restrict this set; it cannot extend it to QA, Done or production. The current shared board’s ANALYSIS column maps to Solution Analysis. New intake continues from To Do; existing unowned implementation work is not silently taken over.
 
 Epics are product context and delivery owners, not engineering task statuses. Ready for Dev or Delivery on an Epic does not itself block eligible To Do children. Product status is preserved; progress comments can summarize the family. Only non-Epic engineering cards enter the change scope or receive mapped engineering transitions.
+
+## Mandatory Development assignee scope
+
+Development JQL always includes an exact `assignee` match for the configured `jira.accountId`. There is no unscoped fallback: missing/invalid owner identity blocks intake. Search results are checked locally too. Parent and sibling discovery can cross projects to preserve context, but only owner-assigned non-Epic engineering cards enter `scopeMembers`. Foreign/unassigned cards remain context and receive no implementation, progress comments or transitions.
+
+Assignment participates in family fingerprints and is rechecked before each delivery stage and immediately before Jira writes. Reassignment blocks the pinned attempt. Changing the configured owner invalidates prior board/family preview checkpoints, preventing a broad or different-owner scan from being reused. The existing Bug Triage channel workflow remains separate; this filter applies to the new Jira Development intake.

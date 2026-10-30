@@ -149,6 +149,7 @@ export async function daemon(directory: string): Promise<void> {
               data: {
                 destination: run.data.destination,
                 issueKey: run.data.issueKey,
+                scopeMembers: run.data.scopeMembers,
                 family:
                   run.kind === "feature"
                     ? {

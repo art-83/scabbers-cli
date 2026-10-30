@@ -1,3 +1,4 @@
+import { AssigneePolicy } from "../../features/assignee-policy.js";
 import { EngineeringWorkflow } from "../../development/engineering-workflow.js";
 import type { JiraSearchPage } from "../types/jira-search-page.js";
 import type { JiraBoard } from "../types/jira-board.js";
@@ -71,12 +72,21 @@ export class JiraClient implements IssueTracker {
         "Configured Jira assignee is not an active verified account",
       );
   }
+  private async assertFeatureOwner(runId: string, key: string): Promise<void> {
+    if (
+      this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
+        ?.kind !== "feature"
+    )
+      return;
+    new AssigneePolicy(this.config.accountId).assert(await this.issue(key));
+  }
   async comment(
     runId: string,
     key: string,
     text: string,
     checkpoint = "documentation",
   ): Promise<string> {
+    await this.assertFeatureOwner(runId, key);
     const marker = `scabbers:${runId}:${checkpoint}`;
     return this.effects.once(
       runId,
@@ -318,6 +328,7 @@ export class JiraClient implements IssueTracker {
         ?.kind === "feature"
     )
       new EngineeringWorkflow().assertTarget(target);
+    await this.assertFeatureOwner(runId, key);
     const marker = `scabbers:${runId}:transition:${checkpoint}`;
     const matches = (issue: any) => issue.fields.status?.name === target;
     await this.effects.once(

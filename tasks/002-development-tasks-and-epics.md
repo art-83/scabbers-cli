@@ -8,7 +8,7 @@ Implementation plan agreed during the current design discussion. This entry does
 
 - Add a **Development** tab and a distinct persisted queue. Reuse the existing development XState machine, processors and delivery controls rather than copying a second implementation.
 - Poll Jira through controller code and the configured Jira token. The LLM receives collected evidence; it does not receive the token or perform polling.
-- Use **Visão Unificada Nola**, board **28**, saved filter **10594**. Do not add an assignee or squad restriction: this is the shared board.
+- Use **Visão Unificada Nola**, board **28**, saved filter **10594**. Always restrict new Development candidates to the configured Jira owner with `assignee = jira.accountId`. The board remains shared; parents and siblings from other owners are context only. This supersedes the initial broad-board design.
 - The board's **To Do** column maps to status **10003 / To Do** and **1 / Open**. Status category alone would miss Open.
 - Analyze related cards as a complete hierarchy, not as unrelated leaves. This is an arbitrary-depth tree, not a binary tree.
 - Deliver an epic family together: **one branch per affected repository per epic**, with a common group plan, review and delivery evidence.
@@ -24,10 +24,11 @@ Some Stories returned by the board have Epic parents in **PNOLA**, although the 
 ```jql
 filter = 10594
 AND status IN (10003, 1)
+AND assignee = "<configured jira.accountId>"
 ORDER BY priority DESC, key ASC
 ```
 
-This query reproduces the entire candidate column. The controller then distinguishes development work from bug/report/support routes; existing bug queues are not migrated or broadened. A card's presence in this query is not JEV approval or permission to implement it.
+This illustrative query selects the configured owner’s candidates from the column; substitute the verified account ID. The controller then distinguishes development work from bug/report/support routes; existing bug queues are not migrated or broadened. A card's presence in this query is not JEV approval or permission to implement it.
 
 ## Implementation sequence
 

@@ -19,6 +19,7 @@ function family(status: string): Family {
           project: { key: "PNOLA" },
           issuetype: { name: "Epic" },
           description: "Product context",
+          assignee: { accountId: "owner-fixture" },
           labels: [],
           status: { name: status, statusCategory: { key: "indeterminate" } },
         },
@@ -29,6 +30,7 @@ function family(status: string): Family {
           project: { key: "SNOLA" },
           issuetype: { name: "Story" },
           description: "Implement this",
+          assignee: { accountId: "owner-fixture" },
           labels: [],
           status: { name: "To Do", statusCategory: { key: "new" } },
         },
@@ -72,6 +74,12 @@ it("keeps Epic product status unchanged even when a workflow mapping exists", as
     jira = { transition: vi.fn(), comment: vi.fn(async () => "receipt") };
   try {
     const config = configSchema.parse({
+      jira: {
+        baseUrl: "https://fixture.example",
+        email: "fixture@example.test",
+        accountId: "owner-fixture",
+        project: "SNOLA",
+      },
       development: {
         transitions: {
           "PNOLA/Epic": {

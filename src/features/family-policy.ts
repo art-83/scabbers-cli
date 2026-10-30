@@ -4,8 +4,14 @@ import type { Family } from "./types/family.js";
 import type { FeatureForm } from "./types/feature-form.js";
 export class FamilyPolicy {
   constructor(private readonly workflow = new EngineeringWorkflow()) {}
-  blocker(family: Family, owned: string[] = []): string | undefined {
+  blocker(
+    family: Family,
+    owned: string[] = [],
+    scope?: string[],
+  ): string | undefined {
     for (const issue of [...family.members, ...family.ancestors]) {
+      if (scope && !scope.includes(issue.key) && !new JiraCard(issue).isEpic)
+        continue;
       if (
         (issue.fields.labels ?? []).some(
           (l: string) => l.toLowerCase() === "no-auto",
@@ -30,7 +36,10 @@ export class FamilyPolicy {
     }
     if (
       !family.members.some(
-        (i) => !new JiraCard(i).isDone && !new JiraCard(i).isEpic,
+        (i) =>
+          !new JiraCard(i).isDone &&
+          !new JiraCard(i).isEpic &&
+          (!scope || scope.includes(i.key)),
       )
     )
       return "Family has no pending engineering work";

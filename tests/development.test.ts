@@ -141,6 +141,12 @@ it.each(["development", "feature"] as const)(
     };
     const config = configSchema.parse({
       remoteEnabled: true,
+      jira: {
+        baseUrl: "https://fixture.example",
+        email: "fixture@example.test",
+        accountId: "owner-fixture",
+        project: "SNOLA",
+      },
       repositories: [
         {
           name: "arcca-pdv",
@@ -167,6 +173,7 @@ it.each(["development", "feature"] as const)(
           project: { key: "SNOLA" },
           summary: "New close action",
           description: "Implement new modal close action",
+          assignee: { accountId: "owner-fixture" },
           status: { name: "To Do", statusCategory: { key: "new" } },
           labels: [],
           allComments: [],

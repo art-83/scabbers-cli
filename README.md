@@ -238,7 +238,7 @@ The runtime calls the integrations directly with the configured credentials. Con
 
 ## Development: Jira tasks and epic families
 
-The controller uses the configured Jira token to resolve the saved board filter and actual To Do-column statuses. For **Visão Unificada Nola**, the known board is `28`; its current saved filter is `10594` and the column includes both To Do and Open. The LLM receives collected evidence, not the token, and does not perform polling. Discovery is independent of the support shift.
+The controller uses the configured Jira token to resolve the saved board filter and actual To Do-column statuses, and always adds an assignee filter using `jira.accountId`. Only cards assigned to that configured owner can enter implementation scope. For **Visão Unificada Nola**, the known board is `28`; its current saved filter is `10594` and the column includes both To Do and Open. The LLM receives collected evidence, not the token, and does not perform polling. Discovery is independent of the support shift.
 
 ```mermaid
 flowchart TD
@@ -255,9 +255,9 @@ flowchart TD
     Delivery --> Staging[Verified staging, native browser E2E and human validation]
 ```
 
-An Epic owns one implementation branch per affected repository for its entire family. Its product status (such as Ready for Dev or Delivery) is context: it is not treated as active engineering work or transitioned by Scabbers. Engineering child cards form the change scope. A standalone Story/Task owns its own branches and includes its subtasks. Completed relatives are context, not new work. Unsupported/mixed active bug families, opt-outs, inaccessible members, cycles and concurrent work are excluded or blocked explicitly. Search can only reveal cards visible to the Jira account; explicit inaccessible references block that group, and hidden cards cannot be independently inferred.
+An Epic owns one implementation branch per affected repository for the selected owner-assigned subset of its family. Other assignees, unassigned siblings and product parents are read-only context. Its product status (such as Ready for Dev or Delivery) is context: it is not treated as active engineering work or transitioned by Scabbers. Engineering child cards form the change scope. A standalone Story/Task owns its own branches and includes its subtasks. Completed relatives are context, not new work. Unsupported/mixed active bug families, opt-outs, inaccessible members, cycles and concurrent work are excluded or blocked explicitly. Search can only reveal cards visible to the Jira account; explicit inaccessible references block that group, and hidden cards cannot be independently inferred.
 
-SQLite persists discovery pages, family membership, semantic requirement fingerprints, analysis results and delivery scope. Sibling candidates deduplicate into one family. Member locks prevent overlapping Bug Fix/Development stages. Requirements and membership are rechecked at delivery boundaries and after approval waits; changed scope blocks the pinned attempt. A later changed family can create a new delivery after the previous run is closed.
+SQLite persists discovery pages, family membership, semantic requirement fingerprints, analysis results and delivery scope. Sibling candidates deduplicate into one family. Member locks prevent overlapping Bug Fix/Development stages. Requirements, membership and assignees are rechecked at delivery boundaries and after approval waits; changed scope blocks the pinned attempt. Jira writes check assignment again. A later changed family can create a new delivery after the previous run is closed.
 
 Configure **Config → Development intake** or `development` in settings.json. New installations default to disabled. Enabling it permits automatic feature intake for the configured board: the runtime first completes a read-only preview, then enqueues fully discovered, supported groups. Both this setting and global Automation must be on. Discovery progresses in bounded batches; temporary board failures back off. One inaccessible family is recorded without stopping unrelated groups.
 

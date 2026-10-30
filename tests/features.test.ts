@@ -1,3 +1,5 @@
+import { AssigneePolicy } from "../src/features/assignee-policy.js";
+import { JiraClient } from "../src/integrations/jira/jira-client.js";
 import { FeatureAnalysis } from "../src/features/analysis.js";
 import { describe, it, expect, vi } from "vitest";
 import { configSchema } from "../src/config/types/config.js";
@@ -39,6 +41,7 @@ function card(
         statusCategory: { key: category },
       },
       labels: [],
+      assignee: { accountId: "owner-fixture" },
       ...(parent ? { parent: { key: parent } } : {}),
       allComments: [],
     },
@@ -82,7 +85,16 @@ class JiraFixture implements IssueTracker {
   route = vi.fn(async () => "SNOLA-999");
 }
 const configuration = () =>
-  configSchema.parse({ engine: "codex", development: { enabled: true } });
+  configSchema.parse({
+    engine: "codex",
+    development: { enabled: true },
+    jira: {
+      baseUrl: "https://fixture.example",
+      email: "fixture@example.test",
+      accountId: "owner-fixture",
+      project: "SNOLA",
+    },
+  });
 const profile = () => ({
   version: "profile-fixture",
   content: "Preferences only",
@@ -588,4 +600,120 @@ describe("Feature-specific JEV rubric", () => {
       ).classifyFeature(form(family), []),
     ).rejects.toThrow("unavailable");
   });
+});
+
+it("always adds the configured assignee to JQL and refuses missing owner identity", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const state = await preview(store, jira);
+    expect(state.jql).toContain('AND assignee = "owner-fixture"');
+    expect(
+      () => new FeatureIntake(store, configSchema.parse({}), jira, profile),
+    ).toThrow("owner account");
+    expect(
+      () => new AssigneePolicy('owner" OR assignee is not EMPTY'),
+    ).toThrow();
+  } finally {
+    store.close();
+  }
+});
+it("keeps other assignees as family context and enqueues only the owner's engineering cards", async () => {
+  const root = card("PNOLA-1", "Epic"),
+    own = card("SNOLA-2", "Story", "PNOLA-1"),
+    other = card("SNOLA-3", "Story", "PNOLA-1", "indeterminate");
+  root.fields.assignee = { accountId: "product-owner" };
+  other.fields.assignee = { accountId: "another-developer" };
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([root, own, other], [own.key]);
+  try {
+    await preview(store, jira);
+    await new FeatureIntake(store, configuration(), jira, profile).advance(
+      false,
+      500,
+    );
+    const run = store.list()[0]!;
+    expect(run.data.scopeMembers).toEqual([own.key]);
+    expect((run.data.family as Family).members).toHaveLength(3);
+    await new FeatureDelivery(store, jira, configuration()).recordProgress(
+      run,
+      "claim",
+      "Own-card progress",
+    );
+    expect(jira.comment).toHaveBeenCalledTimes(1);
+    expect(jira.comment.mock.calls[0]?.[1]).toBe(own.key);
+  } finally {
+    store.close();
+  }
+});
+it("rejects foreign and unassigned seed cards even if search returns stale or unexpected results", async () => {
+  const own = card("SNOLA-1"),
+    other = card("SNOLA-2"),
+    unassigned = card("SNOLA-3");
+  other.fields.assignee = { accountId: "another-developer" };
+  unassigned.fields.assignee = null;
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([own, other, unassigned]);
+  try {
+    const state = await preview(store, jira);
+    expect(state.families.map((f) => f.root)).toEqual([own.key]);
+    expect(
+      state.excluded.filter((e) => e.reason.includes("Not assigned")),
+    ).toHaveLength(2);
+  } finally {
+    store.close();
+  }
+});
+it("blocks delivery when a selected card is reassigned after discovery", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1"),
+      run = store.create("feature", "assignment-change", "codex", "profile", {
+        family,
+        scopeMembers: ["SNOLA-1"],
+      });
+    run.state = "fixing";
+    store.save(run);
+    jira.issues["SNOLA-1"]!.fields.assignee = {
+      accountId: "another-developer",
+    };
+    await expect(
+      new FeatureDelivery(store, jira, configuration()).verifyScope(run),
+    ).rejects.toThrow("Assignment changed");
+  } finally {
+    store.close();
+  }
+});
+it("invalidates preview checkpoints when the configured Jira owner changes", async () => {
+  const first = configuration(),
+    second = configuration();
+  second.jira!.accountId = "other-owner";
+  expect(FeatureIntake.configuration(first)).not.toBe(
+    FeatureIntake.configuration(second),
+  );
+});
+it("checks assignment again at the Jira write boundary", async () => {
+  const store = new Store(":memory:");
+  try {
+    const run = store.create(
+        "feature",
+        "foreign-write",
+        "codex",
+        "profile",
+        {},
+      ),
+      client = new JiraClient(configuration().jira!, "fixture", store);
+    const foreign = card("SNOLA-2");
+    foreign.fields.assignee = { accountId: "another-developer" };
+    vi.spyOn(client, "issue").mockResolvedValue(foreign);
+    await expect(
+      client.comment(run.id, foreign.key, "Forbidden comment"),
+    ).rejects.toThrow("owner scope");
+    await expect(
+      client.transition(run.id, foreign.key, "In Progress", "claim"),
+    ).rejects.toThrow("owner scope");
+  } finally {
+    store.close();
+  }
 });

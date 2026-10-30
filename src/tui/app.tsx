@@ -363,7 +363,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           {tab === "feature" && view?.developmentIntake && (
             <Box flexDirection="column">
               <Text dimColor>
-                Jira intake:{" "}
+                Owner-assigned Jira intake:{" "}
                 {view.developmentIntake.enabled ? "enabled" : "off"} ·{" "}
                 {view.developmentIntake.scan?.status ??
                   view.developmentIntake.preview?.status ??

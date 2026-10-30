@@ -93,7 +93,7 @@ export class FeatureAnalysis {
       this.store.save(run);
       const result = await this.executor.execute(
         run,
-        "Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities. Do not edit. Return data:{key,summary,acceptance:string[],approach,dependencies:string[]}; do not invent requirements. Missing decisions => question.",
+        "Only scopeMembers may be implemented; all other cards are context and must retain their behavior, assignee and status. Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities. Do not edit. Return data:{key,summary,acceptance:string[],approach,dependencies:string[]}; do not invent requirements. Missing decisions => question.",
         "nola-engineering:solution-analysis",
         "read",
         cwd,
@@ -149,9 +149,14 @@ export class FeatureAnalysis {
     form.issueType = root.fields.issuetype.name;
     form.labels = [
       ...new Set(
-        [...family.members, ...family.ancestors].flatMap(
-          (i) => i.fields.labels ?? [],
-        ),
+        [
+          ...family.members.filter(
+            (i) =>
+              i.key === family.root ||
+              (run.data.scopeMembers as string[]).includes(i.key),
+          ),
+          ...family.ancestors.filter((i) => i.key === family.root),
+        ].flatMap((i) => i.fields.labels ?? []),
       ),
     ] as string[];
     run.data.featureForm = form;

@@ -1,3 +1,4 @@
+import { AssigneePolicy } from "./assignee-policy.js";
 import { EngineeringWorkflow } from "../development/engineering-workflow.js";
 import type { Family } from "./types/family.js";
 import type { FamilyVerification } from "./types/family-verification.js";
@@ -39,6 +40,15 @@ export class FeatureDelivery {
       return false;
     }
     const current = hierarchy.complete(verification.state);
+    const owner = new AssigneePolicy(this.config.jira?.accountId);
+    for (const key of run.data.scopeMembers as string[]) {
+      const issue = current.members.find((i) => i.key === key);
+      if (!issue || !owner.owns(issue))
+        throw new Error(
+          "Assignment changed or selected issue is not assigned to the configured Jira owner: " +
+            key,
+        );
+    }
     if (current.digest !== original.digest) {
       run.data.scopeChanged = true;
       store.save(run);
@@ -48,7 +58,11 @@ export class FeatureDelivery {
     }
     const blocker = new FamilyPolicy(
       new EngineeringWorkflow(this.config.development.workflowStatuses),
-    ).blocker(current, (run.data.claimedMembers ?? []) as string[]);
+    ).blocker(
+      current,
+      (run.data.claimedMembers ?? []) as string[],
+      run.data.scopeMembers as string[],
+    );
     if (blocker) throw new Error(blocker);
     if (
       (run.data.scopeMembers as string[]).some((key) =>
@@ -79,7 +93,11 @@ export class FeatureDelivery {
       ...(run.data.scopeMembers as string[]),
     ])) {
       const issue = family.members.find((i) => i.key === key)!;
-      if (new JiraCard(issue).isDone) continue;
+      if (
+        new JiraCard(issue).isDone ||
+        !new AssigneePolicy(config.jira?.accountId).owns(issue)
+      )
+        continue;
       const mapping =
         config.development.transitions[
           `${issue.fields.project.key}/${issue.fields.issuetype.name}`
