@@ -833,3 +833,129 @@ it("does not launch a repair after cancellation", async () => {
     store.close();
   }
 });
+
+it("accepts known product aliases from synthesis without another LLM repair or human nomenclature question", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1");
+    const run = store.create("feature", "product-alias", "codex", "profile", {
+      family,
+      scopeMembers: ["SNOLA-1"],
+      featureAnalyses: { "SNOLA-1": { summary: "Saved analysis" } },
+    });
+    new Workflow(store).transition(run, "START");
+    const candidate = {
+      ...form(family),
+      products: ["Console web NOLA", "API PDV", "Serviço online-menu"],
+    };
+    const executor = {
+        execute: vi.fn(async () => ({ status: "passed", data: candidate })),
+      },
+      decisions = { ask: vi.fn() };
+    await new FeatureAnalysis(
+      store,
+      executor as never,
+      decisions as never,
+    ).investigate(run, "/pinned", new AbortController().signal);
+    expect(store.get(run.id).state).toBe("eligibility");
+    expect(store.get(run.id).data.featureForm.products).toEqual([
+      "web",
+      "arcca-pdv",
+      "arcca-pdv",
+    ]);
+    expect(store.get(run.id).data.form.products).toEqual([
+      "web",
+      "arcca-pdv",
+      "arcca-pdv",
+    ]);
+    expect(store.get(run.id).data.featurePlanCandidate).toBeUndefined();
+    expect(executor.execute).toHaveBeenCalledTimes(1);
+    expect(decisions.ask).not.toHaveBeenCalled();
+  } finally {
+    store.close();
+  }
+});
+it("reuses a validated plan checkpoint after a catalog correction while preserving analysis, session and scope", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1");
+    const run = store.create(
+      "feature",
+      "product-recovery",
+      "codex",
+      "profile",
+      {
+        family,
+        scopeMembers: ["SNOLA-1"],
+        featureAnalyses: { "SNOLA-1": { summary: "Saved analysis" } },
+        featurePlanCandidate: { ...form(family), products: ["Nola Web"] },
+        analysisRevisions: { repo: "pinned" },
+      },
+    );
+    new Workflow(store).transition(run, "START");
+    run.sessionId = "saved-session";
+    store.save(run);
+    const executor = { execute: vi.fn() },
+      decisions = { ask: vi.fn() };
+    await new FeatureAnalysis(
+      store,
+      executor as never,
+      decisions as never,
+    ).investigate(run, "/pinned", new AbortController().signal);
+    const saved = store.get(run.id);
+    expect(saved.state).toBe("eligibility");
+    expect(saved.sessionId).toBe("saved-session");
+    expect(saved.data.analysisRevisions).toEqual({ repo: "pinned" });
+    expect(saved.data.featureAnalyses).toEqual({
+      "SNOLA-1": { summary: "Saved analysis" },
+    });
+    expect(executor.execute).not.toHaveBeenCalled();
+    expect(decisions.ask).not.toHaveBeenCalled();
+  } finally {
+    store.close();
+  }
+});
+it("retains an excluded plan for diagnosis without advancing state, repeating synthesis or accepting its scope", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1");
+    const run = store.create("feature", "product-blocked", "codex", "profile", {
+      family,
+      scopeMembers: ["SNOLA-1"],
+      featureAnalyses: { "SNOLA-1": { summary: "Saved analysis" } },
+    });
+    new Workflow(store).transition(run, "START");
+    const executor = {
+        execute: vi.fn(async () => ({
+          status: "passed",
+          data: { ...form(family), products: ["Nola Web", "SmartPOS"] },
+        })),
+      },
+      decisions = { ask: vi.fn() };
+    const analysis = new FeatureAnalysis(
+      store,
+      executor as never,
+      decisions as never,
+    );
+    await expect(
+      analysis.investigate(run, "/pinned", new AbortController().signal),
+    ).rejects.toThrow("SmartPOS");
+    const saved = store.get(run.id);
+    expect(saved.state).toBe("investigating");
+    expect(saved.data.featureForm).toBeUndefined();
+    expect(saved.data.featurePlanCandidate.products).toEqual([
+      "web",
+      "SmartPOS",
+    ]);
+    await expect(
+      analysis.investigate(saved, "/pinned", new AbortController().signal),
+    ).rejects.toThrow("SmartPOS");
+    expect(executor.execute).toHaveBeenCalledTimes(1);
+    expect(decisions.ask).not.toHaveBeenCalled();
+  } finally {
+    store.close();
+  }
+});

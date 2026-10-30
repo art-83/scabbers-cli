@@ -1,6 +1,7 @@
 import { decisionDetailsSchema } from "../../../decisions/details-schema.js";
 import { decisionProposalSchema } from "../../../decisions/proposal-schema.js";
 import { z } from "zod";
+import { productSchema } from "../../../development/product-schema.js";
 export const eligibilitySchema = z.object({
   nature: z.object({
     trigger: z.string(),
@@ -10,7 +11,7 @@ export const eligibilitySchema = z.object({
   component: z.string(),
   environment: z.string(),
   repositories: z.array(z.string()),
-  products: z.array(z.string()),
+  products: z.array(productSchema).min(1),
   issueType: z.string(),
   labels: z.array(z.string()),
   domains: z.array(z.string()),

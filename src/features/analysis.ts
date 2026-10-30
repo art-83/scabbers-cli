@@ -92,6 +92,15 @@ export class FeatureAnalysis {
     return false;
   }
   async investigate(run: Run, cwd: string, signal: AbortSignal): Promise<void> {
+    if (run.data.featurePlanCandidate) {
+      signal.throwIfAborted();
+      this.acceptFeatureForm(
+        run,
+        featureFormSchema.parse(run.data.featurePlanCandidate),
+      );
+      this.workflow.transition(run, "FORM");
+      return;
+    }
     const family = run.data.family as Family;
     const analyses = (run.data.featureAnalyses ?? {}) as Record<
       string,
@@ -197,12 +206,15 @@ export class FeatureAnalysis {
         ].flatMap((i) => i.fields.labels ?? []),
       ),
     ] as string[];
+    run.data.featurePlanCandidate = form;
+    this.store.save(run);
+    new ScopePolicy().assert(form.repositories, form.products);
     run.data.featureForm = form;
     run.data.form = new FeaturePlan().toDelivery(form);
     run.data.identifyingNames = [
       ...new Set(family.members.flatMap(privateNames)),
     ];
-    new ScopePolicy().assert(form.repositories, form.products);
+    delete run.data.featurePlanCandidate;
     this.store.save(run);
   }
   private async ask(

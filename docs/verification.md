@@ -95,3 +95,7 @@ Unit coverage includes private content-addressed storage, metadata provenance, c
 ### Structured stage questions (October 30, 2026)
 
 The History of Orders investigation stopped at the engine result boundary because `question` contained `{text, decisionContext, decision}` rather than the canonical string. Member-analysis repair was never reached. Both engine adapters now share a boundary reader that normalizes this known shape, promotes its validated context and proposal, and preserves technical data and observed evidence. Conflicting top-level and nested values, invalid recommendations and malformed text still fail validation. Codex receives the full result JSON Schema, including the question/decision fields, instead of a minimal example. Coverage includes native Codex, Claude CLI and Claude browser SDK responses.
+
+### Product-name normalization and feature-plan checkpoints (October 30, 2026)
+
+All three observed plans failed before JEV because display-name product labels did not match the policy's canonical identifiers. Known aliases now normalize through the shared eligibility schema and policy. Tests cover the actual labels, canonical values and typography variations while retaining excluded/mixed/unknown product and repository restrictions. End-to-end controller unit coverage verifies transition to eligibility without another nomenclature question and checkpoint reuse without another LLM call; an excluded plan stays at investigation with its candidate preserved for diagnosis.
