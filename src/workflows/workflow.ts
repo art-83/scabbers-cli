@@ -1,13 +1,18 @@
 import { WorkflowEvidence } from "./evidence-guards.js";
 import { createActor, type AnyActorRef } from "xstate";
 import { supportMachine, developmentMachine } from "./machines.js";
+import { operationalMachine } from "../operations/machine.js";
 import type { Run } from "./types/run.js";
 import type { Store } from "../storage/store.js";
 export class Workflow {
   constructor(private readonly store: Store) {}
   transition(run: Run, event: string): Run {
-    const machine =
-      run.kind === "support" ? supportMachine : developmentMachine;
+    const machine = {
+      support: supportMachine,
+      development: developmentMachine,
+      feature: developmentMachine,
+      operational: operationalMachine,
+    }[run.kind];
     const actor: AnyActorRef = createActor(
       machine,
       run.snapshot ? { snapshot: JSON.parse(run.snapshot) } : {},

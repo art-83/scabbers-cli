@@ -51,6 +51,14 @@ export class DecisionContextFactory {
       investigating: "Análise",
       waiting: "Aguardando decisão",
       eligibility: "Avaliação JEV",
+      planApproval: "Aprovação do plano de criação",
+      building: "Preparação da implementação operacional",
+      testing: "Testes unitários isolados",
+      executionApproval: "Aprovação explícita da implementação",
+      executing: "Execução operacional aprovada",
+      verifying: "Verificação do resultado real",
+      reconciliation: "Reconciliação sem repetição automática",
+      documenting: "Documentação e notificação",
       regression: "Teste de regressão",
       routing: "Classificação e encaminhamento",
       findings: "Ajustes da revisão",
@@ -73,11 +81,13 @@ export class DecisionContextFactory {
       version: 1,
       decisionVersion,
       label:
-        run.kind === "feature"
-          ? "Feature · Development"
-          : run.kind === "development"
-            ? "Suporte · Bug Fix"
-            : "Suporte · Bug Triage",
+        run.kind === "operational"
+          ? "Operação · Operational Tasks"
+          : run.kind === "feature"
+            ? "Feature · Development"
+            : run.kind === "development"
+              ? "Suporte · Bug Fix"
+              : "Suporte · Bug Triage",
       stage: stages[run.state] ?? "Acompanhamento",
       title: this.clean(title, 300),
       summary: this.clean(

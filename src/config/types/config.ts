@@ -74,6 +74,12 @@ export const configSchema = z.strictObject({
         .default({}),
     })
     .prefault({}),
+  operations: z
+    .strictObject({
+      enabled: z.boolean().default(false),
+      pollSeconds: z.number().int().min(15).max(3600).default(60),
+    })
+    .prefault({}),
   gitlab: z
     .strictObject({
       baseUrl: z.url().default("https://gitlab.com"),

@@ -14,6 +14,10 @@ flowchart LR
     Pool --> Router[Pipeline dispatcher]
     Router --> Support[Support processor]
     Router --> Development[Development processor]
+    Router --> Operational[Separate operational processor and XState machine]
+    Operational --> Ports
+    Operational --> Stages
+    Operational --> Scripts[Approval-bound script manager]
     Support --> Ports[Integration abstractions]
     Development --> Ports
     Development --> Judge[JEV decisive classifier]
@@ -50,3 +54,9 @@ Publication records committed heads, staging revisions and MR receipts per repos
 ## Technical sources
 
 The implementation follows [XState persisted snapshots](https://stately.ai/docs/persistence), the supported installed native CLI help, [Claude file permission rules](https://code.claude.com/docs/en/permissions), [native Chrome prerequisites](https://code.claude.com/docs/en/chrome), [Jira Cloud issue metadata and transitions](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), and [Slack conversations.replies pagination](https://docs.slack.dev/reference/methods/conversations.replies/). XState 5 is pinned; the alpha XState 6 persistence format is not used. The versioned JEV form and systemone request/response contract were ported from the preserved NOLA implementation, not guessed from an LLM classification API.
+
+## Operational preparation and execution
+
+`src/operations` owns its machine, processor, plan/implementation schemas, approval proof, documentation, intake and stage classes. Contracts live in `types` and `abstractions/interface`; stage classes receive dependencies through `OperationalContext`. The pipeline dispatches the operational kind before generic delivery recovery, preserving its independent approval and reconciliation semantics.
+
+The controller builds a creation plan from verified Ticket evidence and pinned repositories, consults the dedicated operational JEV rubric and asks the authenticated owner for creation approval. It writes versioned files only afterward, runs unit fixtures in an isolated Linux bubblewrap process and requests an independent native review. Files and results are documented before asking for exact implementation approval. The script manager verifies approval receipts, unchanged bytes, current source scope, account identity and all approved preconditions before the single launch. Read-back checks must cover every success criterion. A started receipt is durable before invocation; interrupted launches enter reconciliation, never an automatic retry. Unsupported targets remain documentation/manual handling. Refer to the README for activation and supported script boundaries.

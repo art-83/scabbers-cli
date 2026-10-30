@@ -22,6 +22,7 @@ export const settingsSections = [
   "gitlab",
   "browser",
   "development",
+  "operations",
   "advanced",
 ] as const;
 
@@ -59,6 +60,10 @@ export function settingsItems(
     {
       key: "development",
       label: `Development intake · ${config.development.enabled ? "enabled" : "off"} · Jira board ${config.development.boardId}`,
+    },
+    {
+      key: "operations",
+      label: `Operational Tasks · ${config.operations.enabled ? "enabled" : "off"} · two explicit approvals`,
     },
     {
       key: "browser",
@@ -290,6 +295,19 @@ export async function configureSetting(
             },
           ]);
       }
+    } else if (section === "operations") {
+      config.operations.enabled =
+        (await prompts.choose(
+          "Discover owner-assigned operational Tickets? Execution always requires two explicit approvals.",
+          [
+            { label: "Enabled", value: "yes" },
+            { label: "Disabled", value: "no" },
+          ],
+          config.operations.enabled ? "yes" : "no",
+        )) === "yes";
+      await fields("Operational polling", config.operations, [
+        { key: "pollSeconds", label: "Polling seconds", kind: "number" },
+      ]);
     } else if (section === "schedule") {
       config.schedule ??= { zone: "America/Sao_Paulo", shifts: [] };
       for (;;) {

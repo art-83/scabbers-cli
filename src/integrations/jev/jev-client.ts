@@ -14,6 +14,12 @@ const featureSpec = JSON.parse(
     "utf8",
   ),
 );
+const operationalSpec = JSON.parse(
+  readFileSync(
+    new URL("../../../assets/operational-eligibility.json", import.meta.url),
+    "utf8",
+  ),
+);
 const probability = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
 function scanSecrets(text: string): string {
@@ -43,6 +49,24 @@ export class JevClient implements EligibilityJudge {
     private readonly key: string,
     private readonly transport: typeof fetch = fetch,
   ) {}
+  async classifyOperational(
+    plan: import("../../operations/types/operation.js").OperationalPlan,
+    blockedNames: string[],
+  ): Promise<import("../types/eligibility-verdict.js").EligibilityVerdict> {
+    const state = JSON.parse(
+      JSON.stringify(plan, (_key, value) => {
+        if (typeof value !== "string") return value;
+        let text = clean(value);
+        for (const name of blockedNames.filter((n) => n.trim().length > 2))
+          text = text.replace(
+            new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
+            "[redacted]",
+          );
+        return text;
+      }),
+    );
+    return this.evaluate(state, operationalSpec, plan.mode === "manual");
+  }
   async classify(
     form: EligibilityForm,
     blockedNames: string[],

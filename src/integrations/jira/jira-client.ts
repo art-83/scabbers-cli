@@ -8,9 +8,20 @@ import type { IssueTracker } from "../abstractions/interface/issue-tracker.js";
 import type { Config } from "../../config/types/config.js";
 import { HttpClient } from "../http-client.js";
 import { JiraImages } from "./jira-images.js";
+import { JiraReviewProgression } from "./review-progression.js";
 import { Effects } from "../../runtime/effects.js";
 import type { Store } from "../../storage/store.js";
 export class JiraClient implements IssueTracker {
+  async readyForReview(
+    runId: string,
+    key: string,
+    checkpoint: string,
+  ): Promise<boolean> {
+    await this.assertOwner(runId, key);
+    return new JiraReviewProgression(this.http, (target) =>
+      this.transition(runId, key, target, checkpoint + ":" + target),
+    ).advance(key);
+  }
   imageEvidence(directory: string): JiraImages {
     return new JiraImages(this.http, directory);
   }
@@ -76,10 +87,14 @@ export class JiraClient implements IssueTracker {
         "Configured Jira assignee is not an active verified account",
       );
   }
-  private async assertFeatureOwner(runId: string, key: string): Promise<void> {
+  private async assertOwner(runId: string, key: string): Promise<void> {
     if (
-      this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
-        ?.kind !== "feature"
+      !["feature", "operational"].includes(
+        String(
+          this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
+            ?.kind,
+        ),
+      )
     )
       return;
     new AssigneePolicy(this.config.accountId).assert(await this.issue(key));
@@ -90,7 +105,7 @@ export class JiraClient implements IssueTracker {
     text: string,
     checkpoint = "documentation",
   ): Promise<string> {
-    await this.assertFeatureOwner(runId, key);
+    await this.assertOwner(runId, key);
     const marker = `scabbers:${runId}:${checkpoint}`;
     return this.effects.once(
       runId,
@@ -328,11 +343,15 @@ export class JiraClient implements IssueTracker {
     checkpoint: string,
   ): Promise<void> {
     if (
-      this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
-        ?.kind === "feature"
+      ["feature", "operational"].includes(
+        String(
+          this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
+            ?.kind,
+        ),
+      )
     )
       new EngineeringWorkflow().assertTarget(target);
-    await this.assertFeatureOwner(runId, key);
+    await this.assertOwner(runId, key);
     const marker = `scabbers:${runId}:transition:${checkpoint}`;
     const matches = (issue: any) => issue.fields.status?.name === target;
     await this.effects.once(

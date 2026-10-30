@@ -1,5 +1,18 @@
 import type { Run } from "./types/run.js";
 const stages = {
+  operational: [
+    "queued",
+    "investigating",
+    "planApproval",
+    "building",
+    "testing",
+    "review",
+    "executionApproval",
+    "executing",
+    "verifying",
+    "documenting",
+    "done",
+  ],
   support: ["queued", "investigating", "routing", "done"],
   development: [
     "queued",

@@ -55,11 +55,16 @@ it("renders both work areas and switches tabs without starting another runtime",
   expect(app.lastFrame()).toContain("No executions in Development");
   app.stdin.write("\t");
   await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(app.lastFrame()).toContain("No executions in Operational Tasks");
+  app.stdin.write("\t");
+  await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()).toContain("Configuration");
   expect(app.lastFrame()).toContain("Enter Edit");
   app.stdin.write("\u001b[D");
   await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(app.lastFrame()).toContain("No executions in Development");
+  expect(app.lastFrame()).toContain("No executions in Operational Tasks");
+  app.stdin.write("\u001b[D");
+  await new Promise((resolve) => setTimeout(resolve, 50));
   Object.defineProperty(app.stdout, "columns", {
     value: 70,
     configurable: true,

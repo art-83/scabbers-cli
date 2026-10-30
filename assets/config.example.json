@@ -98,5 +98,9 @@
     "enabled": false,
     "order": ["codex", "claude"],
     "cooldownSeconds": 300
+  },
+  "operations": {
+    "enabled": false,
+    "pollSeconds": 60
   }
 }

@@ -48,6 +48,18 @@ export class WorkerPool {
       const family = run.data.family as Family | undefined;
       const resources = [
         resource,
+        ...(run.kind === "operational" &&
+        ["executing", "verifying"].includes(run.state)
+          ? [
+              "operational-execution:" +
+                String(
+                  (
+                    run.data.operationalPlan as
+                      { aws?: { accountId?: string } } | undefined
+                  )?.aws?.accountId ?? "local",
+                ),
+            ]
+          : []),
         ...(family
           ? [
               `family:${family.root}`,

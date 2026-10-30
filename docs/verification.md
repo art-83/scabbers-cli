@@ -103,3 +103,9 @@ All three observed plans failed before JEV because display-name product labels d
 ### Read-only production logs and linked support evidence (October 30, 2026)
 
 The new stdio MCP server completed a real authenticated CloudWatch log-group read with the configured AWS profile. That narrow prefix returned no groups; this does not establish the incident cause or absence of logs elsewhere. The tool has no write operations or arbitrary AWS command/endpoint input. Tests exercise bounded queries, redaction, denied/malformed responses, incomplete pagination, argument injection attempts, native adapter isolation and source-thread collection/provenance. A linked origin channel was accessible through the connected Slack plugin but unavailable to the bot (`not_in_channel`); manual reanalysis explicitly identifies that different evidence source rather than claiming the bot collected it.
+
+## Operational Tasks delivery
+
+The complete build and suite passed **257 tests in 36 files**. The new operational coverage exercises real local script creation and sanity read-back, real bubblewrap fixture tests, both authenticated version-bound approvals, changed artifact bytes and requirements, stale/copied approvals, pause/cancel, independent native review recovery, failed checks, interrupted launches without repeat, AWS account mismatch with a process double, manual handoff, owner-only Ticket discovery, cursor invalidation and stop, verified Jira review progression and both option orders of the dedicated operational JEV rubric. Existing support, feature, browser, Git and runtime tests remain green.
+
+Jira metadata was read for the existing routed operational Ticket. No production operation or automatic operational runtime launch was used for verification. A private SQLite/settings backup precedes the local queue seed for the owner's manual test. Full production behavior remains subject to the two explicit approvals and live capabilities.

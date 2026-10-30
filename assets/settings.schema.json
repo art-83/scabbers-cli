@@ -368,6 +368,23 @@
       ],
       "additionalProperties": false
     },
+    "operations": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "pollSeconds": {
+          "default": 60,
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 3600
+        }
+      },
+      "required": ["enabled", "pollSeconds"],
+      "additionalProperties": false
+    },
     "gitlab": {
       "type": "object",
       "properties": {
@@ -475,6 +492,7 @@
     "credentialKeys",
     "slack",
     "development",
+    "operations",
     "repositories",
     "skillPaths",
     "historySources",

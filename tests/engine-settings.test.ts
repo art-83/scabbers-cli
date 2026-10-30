@@ -430,6 +430,55 @@ it("keeps the implementation session when quota interrupts a fresh independent r
   }
 });
 
+it("resumes the saved operational review separately and supplies the exact implementation and artifacts", async () => {
+  const f = fixture();
+  try {
+    f.run.kind = "operational";
+    f.run.state = "review";
+    f.run.sessionId = "implementation-session";
+    f.run.data.reviewSession = "operational-review-session";
+    f.run.data.operationalImplementation = {
+      summary: "review these scripts",
+      files: [{ path: "execute.sh", content: "reviewed contents" }],
+    };
+    f.run.data.operationalArtifacts = { directory: f.directory };
+    f.store.save(f.run);
+    f.add("codex", async (input) => {
+      expect(input.sessionId).toBe("operational-review-session");
+      expect(input.readDirectories).toContain(f.directory);
+      expect(input.prompt).toContain("reviewed contents");
+      input.onSession("operational-review-session");
+      return result;
+    });
+    await f.executor.execute(
+      f.run,
+      "Independent review",
+      "fixture",
+      "read",
+      f.directory,
+      new AbortController().signal,
+      true,
+    );
+    expect(f.store.get(f.run.id).sessionId).toBe("implementation-session");
+    f.run.data.inFlight = true;
+    delete f.run.data.reviewSession;
+    f.store.save(f.run);
+    await expect(
+      f.executor.execute(
+        f.run,
+        "Review",
+        "fixture",
+        "read",
+        f.directory,
+        new AbortController().signal,
+        true,
+      ),
+    ).rejects.toThrow("no confirmed session");
+  } finally {
+    f.close();
+  }
+});
+
 it("does not switch while the previous native process is still running", async () => {
   const f = fixture();
   try {

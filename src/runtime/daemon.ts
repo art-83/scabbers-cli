@@ -33,6 +33,7 @@ import { Intake } from "../support/intake.js";
 import { StageExecutor } from "./stage-executor.js";
 import { Pipeline } from "./pipeline.js";
 import { WorkerPool } from "./worker-pool.js";
+import { OperationalIntake } from "../operations/intake.js";
 import { requestSchema } from "./protocol.js";
 export async function daemon(directory: string): Promise<void> {
   if (!process.connected)
@@ -74,7 +75,10 @@ export async function daemon(directory: string): Promise<void> {
     decisions: DecisionService | undefined,
     intake: Intake | undefined,
     socket: SocketListener | undefined,
-    featureIntake: FeatureIntake | undefined;
+    featureIntake: FeatureIntake | undefined,
+    operationalIntake: OperationalIntake | undefined;
+  let operationalBusy = false,
+    nextOperationalPoll = 0;
   let featureBusy = false,
     nextFeaturePoll = 0,
     featureRetry = 1000;
@@ -121,6 +125,7 @@ export async function daemon(directory: string): Promise<void> {
                 store.getSetting("development-scan"),
               ),
             },
+            operationalIntake: { enabled: config.operations.enabled },
             browserDiagnostic: store.getSetting("browser-diagnostic") ?? null,
             remoteEnabled: config.remoteEnabled,
             engine: config.engine,
@@ -129,6 +134,7 @@ export async function daemon(directory: string): Promise<void> {
             runtimeError,
             activation: {
               digest: activationDigest(),
+              operations: config.operations,
               schedule: config.schedule,
               slack: config.slack,
               jira: config.jira
@@ -168,6 +174,8 @@ export async function daemon(directory: string): Promise<void> {
                 ).length,
                 scopeChanged: run.data.scopeChanged,
                 jev: run.data.jev,
+                operationalPlan: run.data.operationalPlan,
+                operationalStatusNotice: run.data.operationalStatusNotice,
                 engineProfiles: run.data.engineProfiles,
                 engineHandoffs: run.data.engineHandoffs,
               },
@@ -247,6 +255,7 @@ export async function daemon(directory: string): Promise<void> {
     clearInterval(timer);
     pool?.shutdown();
     featureIntake?.stop();
+    operationalIntake?.stop();
     ProcessRunner.stopAll();
     void socket?.stop();
     if (server.listening) server.close();
@@ -323,6 +332,12 @@ export async function daemon(directory: string): Promise<void> {
         ? new FeatureIntake(store, config, jira, () => soul.snapshotForNewRun())
         : undefined;
     const jev = new ConfiguredJudge(config);
+    operationalIntake =
+      jira && config.operations.enabled
+        ? new OperationalIntake(store, config, jira, () =>
+            soul.snapshotForNewRun(),
+          )
+        : undefined;
     const browser = new BrowserSession(config.browser, store);
     const engines = new Map<string, Engine>([
       ["claude", new ClaudeEngine(undefined, browser)],
@@ -406,7 +421,7 @@ export async function daemon(directory: string): Promise<void> {
       const changed = JSON.stringify(loaded) !== JSON.stringify(config);
       settingsPending = changed;
       if (changed) {
-        if (pool?.activeCount || featureBusy) return;
+        if (pool?.activeCount || featureBusy || operationalBusy) return;
         const thisOwner = (id: string) =>
           store.db
             .prepare(
@@ -425,6 +440,8 @@ export async function daemon(directory: string): Promise<void> {
         decisions = undefined;
         intake = undefined;
         featureIntake = undefined;
+        operationalIntake = undefined;
+        nextOperationalPoll = 0;
         nextFeaturePoll = 0;
         config = loaded;
         integrations = pendingHealth();
@@ -478,10 +495,32 @@ export async function daemon(directory: string): Promise<void> {
       if (stopping) {
         pool?.shutdown();
         featureIntake?.stop();
+        operationalIntake?.stop();
         void socket?.stop();
         return;
       }
       if (pool) {
+        if (
+          operationalIntake &&
+          !operationalBusy &&
+          Date.now() >= nextOperationalPoll
+        ) {
+          operationalBusy = true;
+          nextOperationalPoll =
+            Date.now() + config.operations.pollSeconds * 1000;
+          void operationalIntake
+            .sweep()
+            .catch((error) =>
+              store.log(
+                null,
+                "Operational intake: " +
+                  (error instanceof Error ? error.message : "unavailable"),
+              ),
+            )
+            .finally(() => {
+              operationalBusy = false;
+            });
+        }
         if (featureIntake && !featureBusy && Date.now() >= nextFeaturePoll) {
           featureBusy = true;
           nextFeaturePoll = Date.now() + config.development.pollSeconds * 1000;

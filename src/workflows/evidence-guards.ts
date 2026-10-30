@@ -4,10 +4,13 @@ import { FamilyPolicy } from "../features/family-policy.js";
 import type { Run } from "./types/run.js";
 import type { Store } from "../storage/store.js";
 import { ScopePolicy } from "../development/scope-policy.js";
+import { OperationalEvidence } from "../operations/evidence.js";
 export class WorkflowEvidence {
   constructor(private readonly store: Store) {}
   assert(run: Run, event: string): void {
     const store = this.store;
+    if (run.kind === "operational")
+      return new OperationalEvidence(store).assert(run, event);
     if (run.kind === "support") return;
     const need = (valid: unknown, reason: string) => {
       if (!valid) throw new Error(reason);

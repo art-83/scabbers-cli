@@ -29,6 +29,7 @@ const tabLabels = {
   support: "Bug Triage",
   development: "Bug Fix",
   feature: "Development",
+  operational: "Operational Tasks",
   config: "Config",
 } as const;
 
@@ -211,7 +212,13 @@ export function App({ directory }: { directory: string }): React.ReactElement {
       return;
     }
     if (key.tab || key.leftArrow || key.rightArrow) {
-      const tabs = ["support", "development", "feature", "config"] as const;
+      const tabs = [
+        "support",
+        "development",
+        "feature",
+        "operational",
+        "config",
+      ] as const;
       const offset = key.leftArrow || key.shift ? -1 : 1;
       setTab(tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length]!);
       setScrollOffset(0);
@@ -304,6 +311,10 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                 {tab === "feature" ? "▸ " : "  "}
                 {tabLabels.feature}
               </Text>
+              <Text bold color={tab === "operational" ? "#A78BFA" : "gray"}>
+                {tab === "operational" ? "▸ " : "  "}
+                {tabLabels.operational}
+              </Text>
             </Box>
             <Text
               dimColor={tab !== "config"}
@@ -341,7 +352,9 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                 conclusions. Development may investigate with engines/JEV;
                 publication requires its own concrete private review. Decisions
                 and reminders go to the configured Slack owner. Totem/SmartPOS
-                and production changes remain excluded.
+                remain excluded. Operational Tasks prepares documentation and
+                requires separate explicit plan and implementation approvals
+                before an operation.
               </Text>
               <Text>{JSON.stringify(view?.activation, null, 2)}</Text>
             </Box>
@@ -358,6 +371,14 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             <Text color="yellow">
               First setup pending. Run scabbers --configure to select sources,
               configure your schedule and review SOUL.
+            </Text>
+          )}
+          {tab === "operational" && (
+            <Text dimColor>
+              Owner-assigned operational Tickets:{" "}
+              {view?.operationalIntake?.enabled ? "enabled" : "off"} · plan
+              approval → isolated tests → implementation approval →
+              execution/checks
             </Text>
           )}
           {tab === "feature" && view?.developmentIntake && (
@@ -537,6 +558,12 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                 Profile {selected.profileVersion.slice(0, 12)} · native session{" "}
                 {selected.sessionId ?? "not started"}
               </Text>
+              {selected.kind === "operational" &&
+                Boolean(selected.data.operationalStatusNotice) && (
+                  <Text color="yellow">
+                    {String(selected.data.operationalStatusNotice)}
+                  </Text>
+                )}
               {selected.error && <Text color="red">{selected.error}</Text>}
               {view?.decisions
                 .filter(

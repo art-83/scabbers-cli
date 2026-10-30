@@ -1,4 +1,5 @@
 import { Workspace } from "../development/workspace.js";
+import { OperationalProcessor } from "../operations/processor.js";
 import { SupportProcessor } from "../support/support-processor.js";
 import { DevelopmentProcessor } from "../development/development-processor.js";
 import type { Store } from "../storage/store.js";
@@ -14,6 +15,7 @@ export class Pipeline {
   private readonly workflow: Workflow;
   private readonly support: SupportProcessor;
   private readonly development: DevelopmentProcessor;
+  private readonly operational: OperationalProcessor;
   constructor(
     private readonly store: Store,
     private readonly config: Config,
@@ -25,6 +27,16 @@ export class Pipeline {
     directory: string,
   ) {
     this.workflow = new Workflow(store);
+    this.operational = new OperationalProcessor(
+      store,
+      config,
+      executor,
+      slack,
+      decisions,
+      jira,
+      jev,
+      directory,
+    );
     this.support = new SupportProcessor(
       store,
       config,
@@ -59,6 +71,8 @@ export class Pipeline {
       this.store.log(run.id, "Authenticated owner decision received");
       this.store.save(run);
     }
+    if (run.kind === "operational")
+      return this.operational.process(run, signal);
     if (run.state === "waiting") {
       if (!decision) return;
       if (run.data.resumeStage && decision.answer === "Pause") {

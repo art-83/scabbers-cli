@@ -1,6 +1,6 @@
 # Scabbers CLI
 
-Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage**, **Bug Fix** and **Development** tabs display separate queues; **Config** edits settings and connections directly in the terminal.
+Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage**, **Bug Fix**, **Development** and **Operational Tasks** tabs display separate queues; **Config** edits settings and connections directly in the terminal.
 
 A single local runtime is owned by the open CLI panel. Closing the panel or its terminal stops processing; reopening resumes saved checkpoints. **Automation is off by default.** Enabling it permits the configured Slack/Jira workflow actions; code publication and final staging validation have separate human approval steps. Installing the CLI does not install an operating-system service.
 
@@ -57,15 +57,15 @@ Model and effort are configurable per engine in `engines.codex` and `engines.cla
 
 ### Terminal controls
 
-| Control                | Action                                                     |
-| ---------------------- | ---------------------------------------------------------- |
-| `Tab`, `←`, `→`        | Switch Bug Triage, Bug Fix, Development and Config         |
-| `↑`, `↓`               | Select an execution, setting or menu option                |
-| `Enter`                | Open a setting or execution actions; confirm a menu choice |
-| `Esc`                  | Leave a menu without accepting its action                  |
-| `Page Up`, `Page Down` | Scroll overflowing panel content                           |
-| `e`                    | Review automation activation                               |
-| `q`                    | Exit the panel and stop its runtime                        |
+| Control                | Action                                                                |
+| ---------------------- | --------------------------------------------------------------------- |
+| `Tab`, `←`, `→`        | Switch Bug Triage, Bug Fix, Development, Operational Tasks and Config |
+| `↑`, `↓`               | Select an execution, setting or menu option                           |
+| `Enter`                | Open a setting or execution actions; confirm a menu choice            |
+| `Esc`                  | Leave a menu without accepting its action                             |
+| `Page Up`, `Page Down` | Scroll overflowing panel content                                      |
+| `e`                    | Review automation activation                                          |
+| `q`                    | Exit the panel and stop its runtime                                   |
 
 ```sh
 scabbers --doctor
@@ -94,7 +94,7 @@ Daily files and SQLite diagnostic rows expire after 30 days. Cleanup runs on sta
 
 ```mermaid
 flowchart TD
-    Panel[Ink panel: Bug Triage / Bug Fix / Development / Config] <-->|Private local socket| Runtime[Single local runtime]
+    Panel[Ink panel: Bug Triage / Bug Fix / Development / Operational Tasks / Config] <-->|Private local socket| Runtime[Single local runtime]
     Settings[Validated settings.json] --> Runtime
     Credentials[Local credentials / environment / SSM] --> Clients[Slack / Jira / GitLab / JEV clients]
     Runtime --> Clients
@@ -104,6 +104,11 @@ flowchart TD
     JiraIntake[Jira board polling and hierarchy discovery] --> Features[Development feature queue]
     Features --> Development
     Runtime --> JiraIntake
+    Runtime --> OperationalIntake[Owner-assigned routed Ticket polling]
+    OperationalIntake --> Operational[Separate Operational Tasks XState machine]
+    Pool --> Operational
+    Operational --> Executor
+    Operational <--> DB
     Support --> Executor[Native stage executor]
     Development --> Executor
     Executor --> Engine[Claude Code or Codex]
@@ -113,7 +118,7 @@ flowchart TD
     Development <--> DB
 ```
 
-The panel owns a single child runtime through a private IPC connection. Closing the panel (including abrupt owner death) shuts down the runtime and managed subprocesses. Workflow state and native sessions remain in SQLite for the next launch. A second panel cannot take ownership of an existing runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. All three queues share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
+The panel owns a single child runtime through a private IPC connection. Closing the panel (including abrupt owner death) shuts down the runtime and managed subprocesses. Workflow state and native sessions remain in SQLite for the next launch. A second panel cannot take ownership of an existing runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. All four queues share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
 
 XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Board/family discovery and per-member feature analysis checkpoints are saved too. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Bug Fix starts its own native conversation; its independent review uses a separate clean session.
 
@@ -351,3 +356,34 @@ Initial follow-ups, decisions, reminders and checkpoint blockers identify the wo
 Context is snapshotted per decision/version in SQLite, so reminders retain the original facts across restarts. Existing questions are not reposted or silently rewritten; legacy reminders use only verified saved metadata. Numbered reactions, buttons and free thread replies keep their existing owner, channel and version checks. Sensitive text is redacted, untrusted text escaped and Slack element limits preserved.
 
 Individual family-member analyses also receive their exact output schema: `approach` is a plain-text explanation. Object/array/type or wrong-card responses get up to two automatic read-only repairs per member, with attempts persisted across restarts. Existing sibling analyses, authenticated answers, native sessions and pinned revisions remain intact. This validation runs before the separately guarded final-plan validation.
+
+## Operational Tasks: review a plan, then review its implementation
+
+Operational **Tickets** created by Bug Triage are separate from Bug Fix and feature delivery. Enable **Config → Operational Tasks** or set `operations.enabled: true` (default `false`); `operations.pollSeconds` defaults to 60. Global Automation must also be enabled. The intake checks the configured Jira project, exact owner, Ticket type, To Do category, Scabbers routing marker and `no-auto` opt-out. It rechecks ownership and requirements before every stage. Existing started/completed operation markers prevent re-execution after a local database reset.
+
+```mermaid
+flowchart TD
+    Ticket[Owner-assigned operational Ticket] --> Investigate[Evidence and operational-specific JEV]
+    Investigate --> Plan[Document creation plan and risks]
+    Plan --> Approval1{Owner approves this plan?}
+    Approval1 -->|Explicit approval| Build[Prepare scripts or manual runbook]
+    Build --> Test[Isolated local fixture tests]
+    Test --> Review[Independent implementation review]
+    Review --> Document[Files, tests, risks and Ready for Code Review]
+    Document --> Approval2{Owner approves this exact implementation?}
+    Approval2 -->|Explicit approval| Preflight[Verify account, approved targets and preconditions]
+    Preflight --> Execute[Single operational launch]
+    Execute --> Verify[Observed read-back and sanity checks]
+    Verify --> Result[Document result and notify owner privately]
+    Execute -->|Failure or uncertainty| Reconcile[Reconcile; no automatic retry or rollback]
+    Verify -->|Mismatch| Reconcile
+    Approval2 -->|Manual handling| Manual[Document: not executed by Scabbers]
+```
+
+The first approval authorizes **creation and local tests only**. The second binds the exact plan, source requirements, complete artifact contents, passing tests and independent review. Generic agreement, Resume, an old approval or approval of the plan alone never authorizes an operation. Changes invalidate the corresponding approval. Unit scripts run under Linux `bubblewrap` with no network, host HOME, state database or credentials; missing sandbox support blocks the test. Files, outputs and receipts remain in the private state directory under `operations/<run>/<digest>` and SQLite; daily activity logs use the existing retention policy. Operational artifacts and approvals are not removed by the 30-day log cleanup.
+
+The initial executable path supports local scripts and AWS targets with an explicit account/profile/region; unsupported systems or unknown essential write parameters produce a manual runbook. Remote scripts require account verification and use credential references, never embedded secrets. Read-only log access remains separately controlled by `aws.readOnlyLogs`. Scripts include preflight, mutation, verification and fixture tests; independent review must confirm preflight and verification are read-only. This review is evidence, not a guarantee against arbitrary script defects. No live production operation was used to validate this feature.
+
+The JEV rubric is separate (`jev-operational-plan-1.0.0`, provisional threshold 0.89); it evaluates bounded operational preparation, not proof of a software bug. A non-candidate can still be documented but receives no automatic execution option. Jira receives the complete files and review evidence before the second approval, progressing only through available engineering transitions to **Ready for Code Review**. If no permitted path exists, the panel records a notice rather than moving to QA/Done. Being ready for review never means an operation ran. After an uncertain launch, inspect actual state before an explicitly reapproved plan; there is no automatic rollback or repeated mutation.
+
+For a manual first test, open `scabbers`, switch to **Operational Tasks**, review the plan in Jira and answer its private Slack decision. Review generated files and local test evidence before considering the second approval. Closing the CLI stops processing and preserves checkpoints. This queue shares the existing global worker limit; operations targeting the same AWS account are serialized locally.
