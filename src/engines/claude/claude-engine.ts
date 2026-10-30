@@ -1,4 +1,5 @@
 import { NativeQuotaError } from "../errors/quota-error.js";
+import { StageResultReader } from "../stage-result-reader.js";
 import { claudeOptionsSchema } from "../../config/engine-options-schema.js";
 import { accessSync, constants, realpathSync } from "node:fs";
 import { join } from "node:path";
@@ -143,7 +144,7 @@ export class ClaudeEngine implements Engine {
               "Claude browser check failed; native session preserved",
             );
           }
-          return stageResultSchema.parse(
+          return new StageResultReader().parse(
             message.structured_output ?? JSON.parse(message.result),
           );
         }
@@ -249,7 +250,7 @@ export class ClaudeEngine implements Engine {
     );
     if (raw.session_id !== session || raw.is_error)
       throw new Error("Claude did not confirm the saved native session");
-    return stageResultSchema.parse(
+    return new StageResultReader().parse(
       raw.structured_output ?? JSON.parse(raw.result),
     );
   }

@@ -1,4 +1,6 @@
 import { NativeQuotaError } from "../errors/quota-error.js";
+import { z } from "zod";
+import { StageResultReader } from "../stage-result-reader.js";
 import { codexOptionsSchema } from "../../config/engine-options-schema.js";
 import { engineEnvironment } from "../engine-environment.js";
 import { defaultBrowserSession } from "../../browser/session.js";
@@ -79,14 +81,8 @@ export class CodexEngine implements Engine {
             ". Never bypass native origin permissions, use CDP/Playwright substitutes, inspect existing unrelated tabs or claim success without observed UI evidence. If native permission is refused/unavailable, return status question with the exact origin and explain that the user must approve it in Codex Settings > Computer Use > Chrome > Manage, then retry this saved session. Do not wait for input in an invisible terminal."
           : "") +
         "\nReturn only JSON matching: " +
-        JSON.stringify({
-          status: "passed|failed|blocked|question",
-          summary: "string",
-          evidence: ["observed evidence"],
-          question: null,
-          options: [],
-          data: {},
-        }),
+        JSON.stringify(z.toJSONSchema(stageResultSchema)) +
+        "\nquestion must be a plain string or null. Put decisionContext and decision at the top level, never inside question. Treat explicit decisions in the epic and authenticated prior answers as resolved requirements; do not ask them again.",
       (line) => {
         const event = JSON.parse(line);
         if (event.type === "turn.completed") completed = true;
@@ -145,6 +141,6 @@ export class CodexEngine implements Engine {
       throw new NativeQuotaError();
     if (result.code || !session)
       throw new Error("Codex failed; inspect saved session before retry");
-    return stageResultSchema.parse(JSON.parse(text));
+    return new StageResultReader().parse(JSON.parse(text));
   }
 }
