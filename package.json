@@ -1,0 +1,49 @@
+{
+  "name": "@nola/scabbers-cli",
+  "version": "0.1.0",
+  "description": "Durable NOLA support and development workbench",
+  "type": "module",
+  "bin": {
+    "scabbers": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "docs",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && node dist/config/export-schema.js && chmod +x dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/cli.tsx",
+    "start": "node dist/cli.js",
+    "pretest": "npm run build",
+    "format": "prettier --write src tests skills docs README.md package.json tsconfig.json",
+    "format:check": "prettier --check src tests skills docs README.md package.json tsconfig.json"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@slack/socket-mode": "^3.1.0",
+    "@slack/web-api": "^8.2.0",
+    "ink": "^7.1.1",
+    "luxon": "^3.7.2",
+    "react": "^19.3.1",
+    "xstate": "^5.33.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.6",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

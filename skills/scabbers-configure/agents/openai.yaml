@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scabbers · Configuração Brasil"
+  short_description: "Gera JSON com IDs verificados e padrões brasileiros"
+  default_prompt: "Use $scabbers-configure para gerar meu JSON do Scabbers com as integrações conectadas e padrões para o Brasil."

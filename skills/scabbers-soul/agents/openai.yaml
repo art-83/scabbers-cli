@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scabbers · Gerar SOUL"
+  short_description: "Gera e registra seu SOUL com evidências e revisão"
+  default_prompt: "Use $scabbers-soul para gerar meu SOUL.md a partir das preferências desta conversa e colocá-lo no diretório correto do Scabbers."

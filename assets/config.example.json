@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "engine": "claude",
+  "workers": 3,
+  "remoteEnabled": false,
+  "slack": {
+    "channel": "C0BU8TX3NTW",
+    "reportBotIds": ["B0C0B2WU7PU"],
+    "user": "UCONFIGUREOWNER",
+    "tokenParameter": "/replace/with/existing/slack-bot-reference",
+    "appTokenParameter": "/replace/with/slack-app-reference-if-available"
+  },
+  "schedule": {
+    "zone": "America/Sao_Paulo",
+    "shifts": [
+      {
+        "day": "Friday",
+        "start": "14:00",
+        "end": "20:00"
+      }
+    ]
+  },
+  "aws": {
+    "profile": "replace-with-existing-profile",
+    "region": "replace-with-configured-region"
+  },
+  "jevKeyParameter": "/replace/with/existing/jev-reference",
+  "jira": {
+    "baseUrl": "https://arcca.atlassian.net",
+    "email": "developer@example.invalid",
+    "accountId": "replace-with-verified-account-id",
+    "project": "SNOLA",
+    "routingFields": {},
+    "copyReportFields": []
+  },
+  "gitlab": {
+    "baseUrl": "https://gitlab.com",
+    "projectId": "replace-with-real-project-id"
+  },
+  "repositories": [
+    {
+      "name": "arccanet-backend",
+      "path": "/replace/with/arccanet-backend",
+      "stagingUrl": "https://backend.staging.example.invalid",
+      "gitlabProjectId": "replace-with-project-id",
+      "testCommand": ["npm", "test"]
+    },
+    {
+      "name": "arccanet-frontend",
+      "path": "/replace/with/arccanet-frontend",
+      "stagingUrl": "https://frontend.staging.example.invalid",
+      "gitlabProjectId": "replace-with-project-id",
+      "testCommand": ["npm", "test"]
+    },
+    {
+      "name": "arcca-pdv",
+      "path": "/replace/with/arcca-pdv",
+      "stagingUrl": "https://pdv.staging.example.invalid",
+      "gitlabProjectId": "replace-with-project-id",
+      "testCommand": ["npm", "test"]
+    }
+  ],
+  "skillPaths": {
+    "nola-operations:report-triage": "/replace/with/installed/report-triage/SKILL.md",
+    "nola-engineering:solution-analysis": "/replace/with/installed/solution-analysis/SKILL.md",
+    "nola-engineering:bug-reproduction": "/replace/with/installed/bug-reproduction/SKILL.md",
+    "nola-engineering:delivery": "/replace/with/installed/delivery/SKILL.md",
+    "nola-engineering:code-review": "/replace/with/installed/code-review/SKILL.md"
+  },
+  "historySources": [],
+  "paths": []
+}

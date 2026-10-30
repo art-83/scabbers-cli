@@ -1,0 +1,288 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "paths": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "soulFile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "default": 1,
+      "type": "number",
+      "const": 1
+    },
+    "engine": {
+      "default": "claude",
+      "type": "string",
+      "enum": [
+        "claude",
+        "codex"
+      ]
+    },
+    "workers": {
+      "default": 3,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "remoteEnabled": {
+      "default": false,
+      "type": "boolean"
+    },
+    "slack": {
+      "default": {
+        "channel": "C0BU8TX3NTW",
+        "reportBotIds": [
+          "B0C0B2WU7PU"
+        ]
+      },
+      "type": "object",
+      "properties": {
+        "channel": {
+          "default": "C0BU8TX3NTW",
+          "type": "string"
+        },
+        "reportBotIds": {
+          "default": [
+            "B0C0B2WU7PU"
+          ],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "user": {
+          "type": "string",
+          "pattern": "^U[A-Z0-9]+$"
+        },
+        "tokenParameter": {
+          "type": "string"
+        },
+        "appTokenParameter": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "channel",
+        "reportBotIds"
+      ],
+      "additionalProperties": false
+    },
+    "schedule": {
+      "type": "object",
+      "properties": {
+        "zone": {
+          "type": "string"
+        },
+        "shifts": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": {
+                "type": "string",
+                "enum": [
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday"
+                ]
+              },
+              "start": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              },
+              "end": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              }
+            },
+            "required": [
+              "day",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "zone",
+        "shifts"
+      ],
+      "additionalProperties": false
+    },
+    "jira": {
+      "type": "object",
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "routingFields": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "copyReportFields": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "baseUrl",
+        "email",
+        "accountId",
+        "project",
+        "routingFields",
+        "copyReportFields"
+      ],
+      "additionalProperties": false
+    },
+    "gitlab": {
+      "type": "object",
+      "properties": {
+        "baseUrl": {
+          "default": "https://gitlab.com",
+          "type": "string",
+          "format": "uri"
+        },
+        "projectId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseUrl",
+        "projectId"
+      ],
+      "additionalProperties": false
+    },
+    "repositories": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "arccanet-backend",
+              "arccanet-frontend",
+              "arcca-pdv"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "stagingUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "stagingRef": {
+            "default": "staging",
+            "type": "string",
+            "const": "staging"
+          },
+          "gitlabProjectId": {
+            "type": "string"
+          },
+          "testCommand": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "stagingUrl",
+          "stagingRef",
+          "testCommand"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "skillPaths": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "historySources": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "aws": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "jevKeyParameter": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "paths",
+    "version",
+    "engine",
+    "workers",
+    "remoteEnabled",
+    "slack",
+    "repositories",
+    "skillPaths",
+    "historySources",
+    "aws"
+  ],
+  "additionalProperties": false,
+  "title": "Scabbers settings",
+  "description": "Editable NOLA Scabbers settings. Runtime state and SOUL approval are persisted separately."
+}

@@ -1,0 +1,14 @@
+export type StageInput = {
+  runId: string;
+  stage: string;
+  prompt: string;
+  cwd: string;
+  sessionId: string | null;
+  mode: "read" | "edit" | "browser";
+  browserAuthorized: boolean;
+  onSession: (id: string) => void;
+  directories?: string[];
+  readDirectories?: string[];
+  onProcess?: (pid: number) => void;
+  signal?: AbortSignal;
+};
