@@ -6,10 +6,10 @@ const color = (value: string, codes: string): string =>
     ? `\x1b[${codes}m${value}\x1b[0m`
     : value;
 export const terminalStyle = {
-  title: (value: string) => color(value, "1;35"),
-  key: (value: string) => color(` ${value} `, "1;37;44"),
+  title: (value: string) => color(value, "1;38;2;167;139;250"),
+  key: (value: string) => color(` ${value} `, "1;38;2;167;139;250"),
   muted: (value: string) => color(value, "2;37"),
-  selected: (value: string) => color(value, "1;30;46"),
-  option: (value: string) => color(value, "36"),
+  selected: (value: string) => color(value, "1;38;2;167;139;250"),
+  option: (value: string) => color(value, "90"),
   success: (value: string) => color(value, "1;32"),
 };

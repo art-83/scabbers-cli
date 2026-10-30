@@ -269,18 +269,18 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           </Box>
           <Box marginY={1} justifyContent="space-between" flexShrink={0}>
             <Box gap={4}>
-              <Text bold color={tab === "support" ? "cyan" : "gray"}>
+              <Text bold color={tab === "support" ? "#A78BFA" : "gray"}>
                 {tab === "support" ? "▸ " : "  "}
                 {tabLabels.support}
               </Text>
-              <Text bold color={tab === "development" ? "cyan" : "gray"}>
+              <Text bold color={tab === "development" ? "#A78BFA" : "gray"}>
                 {tab === "development" ? "▸ " : "  "}
                 {tabLabels.development}
               </Text>
             </Box>
             <Text
               dimColor={tab !== "config"}
-              color={tab === "config" ? "cyan" : "gray"}
+              color={tab === "config" ? "#A78BFA" : "gray"}
             >
               {tab === "config" ? "▸ " : ""}Config
             </Text>
@@ -295,16 +295,14 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               <Text bold>Review automation activation</Text>
               <Text>↑ ↓ select · Enter confirm · Esc return</Text>
               <Text
-                color={activationIndex === 0 ? "black" : "cyan"}
+                color={activationIndex === 0 ? "#A78BFA" : "gray"}
                 bold={activationIndex === 0}
-                {...(activationIndex === 0 ? { backgroundColor: "cyan" } : {})}
               >
                 {activationIndex === 0 ? "›" : " "} Return without activation
               </Text>
               <Text
-                color={activationIndex === 1 ? "black" : "cyan"}
+                color={activationIndex === 1 ? "#A78BFA" : "gray"}
                 bold={activationIndex === 1}
-                {...(activationIndex === 1 ? { backgroundColor: "cyan" } : {})}
               >
                 {activationIndex === 1 ? "›" : " "} Activate automation with
                 these settings
@@ -339,7 +337,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             <Box
               flexDirection="column"
               borderStyle="round"
-              borderColor="cyan"
+              borderColor="#A78BFA"
               paddingX={1}
             >
               <Text bold color="magenta">
@@ -367,12 +365,9 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                   <Text
                     key={item.key}
                     color={
-                      configItems[index]?.key === item.key ? "black" : "cyan"
+                      configItems[index]?.key === item.key ? "#A78BFA" : "gray"
                     }
                     bold={configItems[index]?.key === item.key}
-                    {...(configItems[index]?.key === item.key
-                      ? { backgroundColor: "cyan" }
-                      : {})}
                   >
                     {configItems[index]?.key === item.key ? "›" : " "}{" "}
                     {item.label}
@@ -413,7 +408,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                 .slice(Math.max(0, index - 5), Math.max(8, index + 1))
                 .map((run) => (
                   <Box key={run.id} gap={2}>
-                    <Text color={run.id === selected?.id ? "cyan" : "white"}>
+                    <Text color={run.id === selected?.id ? "#A78BFA" : "white"}>
                       {run.id === selected?.id ? "›" : " "}{" "}
                       {run.source.slice(0, 40).padEnd(40)}
                     </Text>
@@ -436,7 +431,11 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             </Box>
           )}
           {actionsOpen && (
-            <Box flexDirection="column" borderStyle="round" borderColor="cyan">
+            <Box
+              flexDirection="column"
+              borderStyle="round"
+              borderColor="#A78BFA"
+            >
               <Text>
                 Execution actions · ↑ ↓ select · Enter confirm · Esc return
               </Text>
@@ -445,13 +444,12 @@ export function App({ directory }: { directory: string }): React.ReactElement {
                   key={label}
                   color={
                     actionIndex === i
-                      ? "black"
+                      ? "#A78BFA"
                       : label === "Cancel"
                         ? "red"
-                        : "cyan"
+                        : "gray"
                   }
                   bold={actionIndex === i}
-                  {...(actionIndex === i ? { backgroundColor: "cyan" } : {})}
                 >
                   {actionIndex === i ? "›" : " "} {label}
                 </Text>
@@ -462,7 +460,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             <Box
               flexDirection="column"
               borderStyle="round"
-              borderColor="cyan"
+              borderColor="#A78BFA"
               paddingX={1}
               marginTop={1}
             >
@@ -521,7 +519,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
         ).map((hint, i, hints) => (
           <Box key={hint} marginRight={1}>
             <Text>
-              <Text bold color="white" backgroundColor="blue">
+              <Text bold color="#A78BFA">
                 {hint.split(" ")[0]}
               </Text>
               <Text dimColor> {hint.slice(hint.indexOf(" ") + 1)}</Text>
