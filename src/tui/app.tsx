@@ -219,18 +219,26 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           flexShrink={0}
           marginTop={-scrollOffset}
         >
-          <Box
-            borderStyle="round"
-            borderColor="magenta"
-            paddingX={2}
-            justifyContent="space-between"
-            flexShrink={0}
-          >
-            <Box alignItems="center" gap={1}>
+          <Box gap={1} flexShrink={0}>
+            <Box
+              borderStyle="round"
+              borderColor="#A78BFA"
+              paddingX={1}
+              alignItems="center"
+              gap={1}
+              flexGrow={1}
+            >
               <Mascot />
-              <Wordmark compact={columns < 80} />
+              <Wordmark compact={columns < 84} />
             </Box>
-            <Box flexDirection="column" flexShrink={0}>
+            <Box
+              flexDirection="column"
+              borderStyle="round"
+              borderColor="white"
+              paddingX={1}
+              flexShrink={0}
+              justifyContent="center"
+            >
               <Text bold color={view?.remoteEnabled ? "green" : "yellow"}>
                 {view?.remoteEnabled ? "AUTOMATION ACTIVE" : "AUTOMATION OFF"}
               </Text>
