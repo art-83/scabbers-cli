@@ -1,3 +1,4 @@
+import type { DecisionDetails } from "../decisions/types/decision-context.js";
 import type { AnalysisWorkspace } from "../development/abstractions/interface/analysis-workspace.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
@@ -134,6 +135,7 @@ export class SupportProcessor {
           result.question ?? result.summary,
           result.options,
           result.decision,
+          result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
         );
         return;
       }
@@ -200,8 +202,16 @@ export class SupportProcessor {
     question: string,
     options: string[],
     proposal?: DecisionProposal,
+    details?: DecisionDetails,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
+    await this.decisions.ask(
+      run.id,
+      question,
+      options,
+      Date.now(),
+      proposal,
+      details,
+    );
     if (["investigating", "routing", "e2e"].includes(run.state))
       this.workflow.transition(run, "ASK");
     else this.store.log(run.id, "Private decision pending at " + run.state);

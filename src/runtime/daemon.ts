@@ -291,7 +291,12 @@ export async function daemon(directory: string): Promise<void> {
     const auth = await slack.web.auth.test();
     if (auth.team?.toUpperCase() !== "ARCCA")
       throw new Error("Slack authentication did not confirm workspace ARCCA");
-    decisions = new DecisionService(store, slack, config.slack.user);
+    decisions = new DecisionService(
+      store,
+      slack,
+      config.slack.user,
+      config.jira?.baseUrl,
+    );
     const soul = new Soul(
       store,
       directory,
@@ -341,8 +346,17 @@ export async function daemon(directory: string): Promise<void> {
       async (run, message) => {
         const d = await decisions!.ask(
           run.id,
-          `Checkpoint ${run.state} blocked for ${run.source}: ${message}\nResolve the stated access/configuration issue directly, then retry this saved checkpoint. Never send passwords or tokens.`,
+          "Como deseja acompanhar este bloqueio técnico?",
           ["Retry checkpoint", "Pause"],
+          Date.now(),
+          undefined,
+          {
+            summary:
+              "A execução parou nesta etapa e o progresso salvo foi preservado.",
+            problem: message.slice(0, 1200),
+            whyHuman:
+              "A causa técnica precisa ser resolvida antes de repetir a etapa. Você pode pausar; repetir sem corrigir tende a produzir o mesmo erro.",
+          },
         );
         return d.id;
       },

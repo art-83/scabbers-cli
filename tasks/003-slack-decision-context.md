@@ -1,12 +1,12 @@
 # Slack decisions with context and workflow labels
 
-Status: **To do**
+Status: **Done**
 
 ## Problem and outcome
 
 Private Scabbers messages currently lead with a direct question and optional choices. The recipient has to reconstruct the card, stage and reason for interruption from the thread. Runtime failures also resemble product questions. Every new private decision, reminder and blocker should explain its purpose before requesting action.
 
-This is an implementation plan, not an implemented feature. It does not authorize sending example messages or rewriting existing Slack threads.
+Implemented from the approved plan. Existing pending Slack messages are not rewritten, and validation sends no real Slack messages.
 
 ## Message structure
 
@@ -43,3 +43,7 @@ Preserve authenticated owner checks, channel/thread and version matching, answer
 ## Operational reset
 
 The owner authorized clearing local Scabbers execution progress before retesting. Back up SQLite first, clear execution-specific decisions/receipts/effects/checkpoints and discovery progress, and remove only clean generated analysis worktrees. Preserve settings, credential references, SOUL versions, diagnostic logs and external Jira/Slack content. Keep the runtime stopped until the owner starts the next manual test. Resetting execution progress is separate from implementing this task.
+
+## Validation evidence
+
+Implemented workflow-derived card context snapshots, stage-summary forwarding, optional structured problem/reason fields, consistent initial/decision/reminder formatting and clearly labeled technical blockers. Tests cover all workflow labels, verified links, restart-stable reminders, missing metadata, sensitive text redaction, Unicode/Slack size limits, unique buttons and unchanged reaction targets. The full build/test suite, formatting and Gitleaks run through the commit hook.

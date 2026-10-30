@@ -1,3 +1,5 @@
+import type { DecisionContext } from "./types/decision-context.js";
+import { redactLog } from "../logging/log-redactor.js";
 import type { Decision } from "./types/decision.js";
 import type { DecisionProposal } from "./types/decision-proposal.js";
 export class DecisionPresentation {
@@ -14,7 +16,7 @@ export class DecisionPresentation {
     "keycap_ten",
   ];
   private escape(text: string): string {
-    return text
+    return redactLog(text)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
@@ -28,14 +30,58 @@ export class DecisionPresentation {
       value
     );
   }
+  private buttonLabel(text: string): string {
+    const label = text.slice(0, 75);
+    return /[\uD800-\uDBFF]$/.test(label) ? label.slice(0, -1) : label;
+  }
+  private header(context: DecisionContext): string {
+    const card = context.issueUrl
+      ? `<${context.issueUrl}|${this.escape(context.issueKey!)}>`
+      : context.issueKey
+        ? this.escape(context.issueKey) + " · "
+        : "";
+    return `*${this.escape(context.label)}* · ${card} ${this.escape(context.title)}\n*Etapa:* ${this.escape(context.stage)}${context.technical ? " · Bloqueio técnico" : ""}`;
+  }
+  introduction(d: Decision, context: DecisionContext, marker: string): string {
+    return `<@${d.userId}> ${this.header(context)}\n*Contexto:* ${this.escape(context.summary)}\nAcompanhamento privado desta demanda.\n${marker}`;
+  }
+  reminder(
+    d: Decision,
+    context: DecisionContext,
+    marker: string,
+    proposal?: DecisionProposal,
+  ): string {
+    const rendered = this.render(d, proposal, context).text;
+    const nonce = `\`scabbers:decision:${d.id}:v${d.version}\``;
+    return (
+      "*Lembrete — decisão pendente*\n" +
+      rendered
+        .replace(nonce, "")
+        .replace(
+          "Clique em uma reação numerada desta mensagem, escolha um botão ou responda nesta thread com o número. Para outro caminho, escreva sua resposta livre. Selecione apenas uma opção.",
+          "Responda nesta thread com o número ou texto livre. Os botões e reações estão na mensagem original. Selecione apenas uma opção.",
+        ) +
+      "\n" +
+      marker
+    );
+  }
   render(
     d: Decision,
     proposal?: DecisionProposal,
+    context?: DecisionContext,
   ): { text: string; blocks: unknown[] } {
     const options = JSON.parse(d.options) as string[],
       marker = `scabbers:decision:${d.id}:v${d.version}`;
     const lines = [
-      `<@${d.userId}> ${this.escape(d.question)}`,
+      ...(context
+        ? [
+            `<@${d.userId}> ${this.header(context)}`,
+            `*Contexto:* ${this.escape(context.summary)}`,
+            `*Problema:* ${this.escape(context.problem)}`,
+            `*Por que preciso de você:* ${this.escape(context.whyHuman)}`,
+            `*${context.technical ? "Ação necessária" : "Decisão"}:* ${this.escape(d.question)}`,
+          ]
+        : [`<@${d.userId}> ${this.escape(d.question)}`]),
       ...options.map(
         (option, index) =>
           `${index + 1}. ${this.escape(option)}${proposal?.choices[index] ? " — " + this.escape(proposal.choices[index]!.consequence) : ""}`,
@@ -47,6 +93,12 @@ export class DecisionPresentation {
           ? `Sem recomendação fechada: ${this.escape(proposal.reason)}`
           : `*Recomendação: opção ${proposal.recommendedIndex + 1}.* ${this.escape(proposal.reason)}`,
       );
+    if (!proposal && context?.technical)
+      lines.push(
+        options.includes("Pause") && options.includes("Retry checkpoint")
+          ? "*Orientação:* Pause enquanto a causa não estiver resolvida. Use Retry checkpoint apenas depois de corrigi-la; essa opção não corrige o problema automaticamente."
+          : "*Orientação:* Resolva a causa técnica antes de repetir a etapa; uma resposta nesta thread não corrige o problema automaticamente.",
+      );
     lines.push(
       options.length
         ? "Clique em uma reação numerada desta mensagem, escolha um botão ou responda nesta thread com o número. Para outro caminho, escreva sua resposta livre. Selecione apenas uma opção."
@@ -55,11 +107,15 @@ export class DecisionPresentation {
     );
     const text = lines.join("\n");
     const blocks: unknown[] = [];
-    for (let index = 0; index < text.length; index += 2800)
+    for (let index = 0; index < text.length;) {
+      let end = Math.min(index + 2800, text.length);
+      if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1]!)) end--;
       blocks.push({
         type: "section",
-        text: { type: "mrkdwn", text: text.slice(index, index + 2800) },
+        text: { type: "mrkdwn", text: text.slice(index, end) },
       });
+      index = end;
+    }
     if (options.length)
       blocks.push({
         type: "actions",
@@ -67,7 +123,7 @@ export class DecisionPresentation {
           type: "button",
           text: {
             type: "plain_text",
-            text: `${index + 1}. ${label}`.slice(0, 75),
+            text: this.buttonLabel(`${index + 1}. ${redactLog(label)}`),
           },
           action_id: `scabbers_decision_${index}`,
           value: JSON.stringify({ id: d.id, version: d.version, index }),

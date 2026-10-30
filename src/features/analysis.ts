@@ -1,3 +1,4 @@
+import type { DecisionDetails } from "../decisions/types/decision-context.js";
 import { ValidatedPlan } from "./validated-plan.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
@@ -57,6 +58,7 @@ export class FeatureAnalysis {
           result.question ?? result.summary,
           result.options,
           result.decision,
+          result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
         );
         return true;
       }
@@ -119,6 +121,7 @@ export class FeatureAnalysis {
           result.question ?? result.summary,
           result.options,
           result.decision,
+          result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
         );
         return;
       }
@@ -156,6 +159,7 @@ export class FeatureAnalysis {
         result.question ?? result.summary,
         result.options,
         result.decision,
+        result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
       );
       return;
     }
@@ -204,8 +208,16 @@ export class FeatureAnalysis {
     question: string,
     options: string[],
     proposal?: DecisionProposal,
+    details?: DecisionDetails,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
+    await this.decisions.ask(
+      run.id,
+      question,
+      options,
+      Date.now(),
+      proposal,
+      details,
+    );
     if (run.state === "investigating") this.workflow.transition(run, "ASK");
   }
 }

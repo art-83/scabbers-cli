@@ -1,3 +1,4 @@
+import type { DecisionDetails } from "../decisions/types/decision-context.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { FeatureAnalysis } from "../features/analysis.js";
 import { featureFormSchema } from "../features/feature-form-schema.js";
@@ -168,6 +169,7 @@ export class DevelopmentProcessor {
           result.question ?? result.summary,
           result.options,
           result.decision,
+          result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
         );
         return;
       }
@@ -250,6 +252,12 @@ export class DevelopmentProcessor {
               : [],
             Date.now(),
             unresolved.proposal,
+            unresolved.context ?? {
+              summary: `${form.component}: ${form.nature.expected}`.slice(
+                0,
+                1200,
+              ),
+            },
           );
           return;
         }
@@ -352,6 +360,7 @@ export class DevelopmentProcessor {
           result.question ?? result.summary,
           result.options,
           result.decision,
+          result.decisionContext ?? { summary: result.summary.slice(0, 1200) },
         );
         return;
       }
@@ -732,8 +741,16 @@ export class DevelopmentProcessor {
     question: string,
     options: string[],
     proposal?: DecisionProposal,
+    details?: DecisionDetails,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
+    await this.decisions.ask(
+      run.id,
+      question,
+      options,
+      Date.now(),
+      proposal,
+      details,
+    );
     if (["investigating", "routing", "e2e"].includes(run.state))
       this.workflow.transition(run, "ASK");
     else this.store.log(run.id, "Private decision pending at " + run.state);

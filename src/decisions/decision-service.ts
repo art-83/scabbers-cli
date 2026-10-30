@@ -1,3 +1,9 @@
+import { DecisionContextFactory } from "./context-factory.js";
+import { decisionDetailsSchema } from "./details-schema.js";
+import type {
+  DecisionContext,
+  DecisionDetails,
+} from "./types/decision-context.js";
 import { DecisionPresentation } from "./presentation.js";
 import { decisionProposalSchema } from "./proposal-schema.js";
 import type { DecisionProposal } from "./types/decision-proposal.js";
@@ -15,6 +21,7 @@ export class DecisionService {
     private readonly store: Store,
     private readonly slack: Messaging,
     private readonly userId: string,
+    private readonly jiraBaseUrl?: string,
   ) {
     this.effects = new Effects(store);
   }
@@ -29,7 +36,11 @@ export class DecisionService {
     options: string[],
     now = Date.now(),
     proposal?: DecisionProposal,
+    details?: DecisionDetails,
   ): Promise<Decision> {
+    const preparedDetails = details
+      ? decisionDetailsSchema.parse(details)
+      : undefined;
     const prepared = proposal
       ? decisionProposalSchema.parse(proposal)
       : undefined;
@@ -61,6 +72,13 @@ export class DecisionService {
           now,
           now + 600_000,
         );
+      const context = new DecisionContextFactory(this.jiraBaseUrl).create(
+        this.store.get(runId),
+        question,
+        1,
+        preparedDetails,
+      );
+      this.store.setSetting(`decision-context:${id}:v1`, context);
       if (prepared) this.store.setSetting(`decision-proposal:${id}`, prepared);
       decision = this.list().find((d) => d.id === id)!;
     }
@@ -74,6 +92,7 @@ export class DecisionService {
         .prepare("UPDATE decisions SET channel=? WHERE id=?")
         .run(d.channel, d.id);
     }
+    const context = this.context(d);
     let root = this.store.get(d.runId).data.privateThread as string | undefined;
     if (!root) {
       const marker = `scabbers:run:${d.runId}`;
@@ -84,7 +103,7 @@ export class DecisionService {
         () =>
           this.slack.post(
             d.channel!,
-            `<@${d.userId}> Acompanhamento privado da demanda ${this.store.get(d.runId).source}. ${marker}`,
+            this.presentation.introduction(d, context, marker),
           ),
       );
       const run = this.store.get(d.runId);
@@ -95,7 +114,7 @@ export class DecisionService {
     const marker = `scabbers:decision:${d.id}:v${d.version}`;
     const proposal = this.store.getSetting(`decision-proposal:${d.id}`) as
       DecisionProposal | undefined;
-    const rendered = this.presentation.render(d, proposal);
+    const rendered = this.presentation.render(d, proposal, context);
     const alreadyPosted = this.effects.completed<string>(marker) !== undefined;
     const timestamp = await this.effects.once(
       d.runId,
@@ -125,6 +144,19 @@ export class DecisionService {
     };
     this.store.setSetting(`decision-message:${d.id}`, receipt);
     await this.seed(d, receipt);
+  }
+  private context(d: Decision): DecisionContext {
+    const saved = this.store.getSetting(
+      `decision-context:${d.id}:v${d.version}`,
+    ) as DecisionContext | undefined;
+    return (
+      saved ??
+      new DecisionContextFactory(this.jiraBaseUrl).create(
+        this.store.get(d.runId),
+        d.question,
+        d.version,
+      )
+    );
   }
   private message(d: Decision): DecisionMessage | undefined {
     const saved = this.store.getSetting(`decision-message:${d.id}`) as
@@ -360,7 +392,13 @@ export class DecisionService {
         () =>
           this.slack.post(
             d.channel!,
-            `<@${d.userId}> Decisão pendente: ${d.question}\nClique em uma reação numerada da mensagem da decisão ou responda livremente nesta thread. ${marker}`,
+            this.presentation.reminder(
+              d,
+              this.context(d),
+              marker,
+              this.store.getSetting(`decision-proposal:${d.id}`) as
+                DecisionProposal | undefined,
+            ),
             d.thread!,
           ),
       );
