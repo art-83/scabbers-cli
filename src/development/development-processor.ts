@@ -1,3 +1,4 @@
+import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { FeatureAnalysis } from "../features/analysis.js";
 import { featureFormSchema } from "../features/feature-form-schema.js";
 import { FeatureDelivery } from "../features/delivery.js";
@@ -160,7 +161,12 @@ export class DevelopmentProcessor {
         signal,
       );
       if (result.status !== "passed") {
-        await this.ask(run, result.question ?? result.summary, result.options);
+        await this.ask(
+          run,
+          result.question ?? result.summary,
+          result.options,
+          result.decision,
+        );
         return;
       }
       const form = eligibilitySchema.parse(result.data);
@@ -240,6 +246,8 @@ export class DevelopmentProcessor {
             unresolved.proposed_default
               ? [unresolved.proposed_default, "Discuss alternative"]
               : [],
+            Date.now(),
+            unresolved.proposal,
           );
           return;
         }
@@ -337,7 +345,12 @@ export class DevelopmentProcessor {
         signal,
       );
       if (result.status !== "passed") {
-        await this.ask(run, result.question ?? result.summary, result.options);
+        await this.ask(
+          run,
+          result.question ?? result.summary,
+          result.options,
+          result.decision,
+        );
         return;
       }
       const changed = await this.workspace.changed(paths);
@@ -706,8 +719,9 @@ export class DevelopmentProcessor {
     run: Run,
     question: string,
     options: string[],
+    proposal?: DecisionProposal,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options);
+    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
     if (["investigating", "routing", "e2e"].includes(run.state))
       this.workflow.transition(run, "ASK");
     else this.store.log(run.id, "Private decision pending at " + run.state);

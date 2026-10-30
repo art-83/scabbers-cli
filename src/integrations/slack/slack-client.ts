@@ -1,3 +1,4 @@
+import type { MessageReaction } from "../types/message-reaction.js";
 import type { MessagePage } from "../../support/types/message-page.js";
 import type { Messaging } from "../abstractions/interface/messaging.js";
 import { WebClient } from "@slack/web-api";
@@ -9,6 +10,33 @@ export class SlackClient implements Messaging {
       retryConfig: { retries: 3 },
       rejectRateLimitedCalls: true,
     });
+  }
+  async react(channel: string, timestamp: string, name: string): Promise<void> {
+    try {
+      await this.web.reactions.add({ channel, timestamp, name });
+    } catch (error) {
+      if (
+        (error as { data?: { error?: string } }).data?.error !==
+        "already_reacted"
+      )
+        throw error;
+    }
+  }
+  async reactions(
+    channel: string,
+    timestamp: string,
+  ): Promise<MessageReaction[]> {
+    const response = await this.web.reactions.get({
+      channel,
+      timestamp,
+      full: true,
+    });
+    if (response.type !== "message" || !response.message)
+      throw new Error("Slack reaction target is not a message");
+    return (response.message.reactions ?? []).map((reaction) => ({
+      name: reaction.name ?? "",
+      users: reaction.users ?? [],
+    }));
   }
   async openPrivate(user: string): Promise<string> {
     const response = await this.web.conversations.open({ users: user });

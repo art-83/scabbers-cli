@@ -1,6 +1,9 @@
+import type { MessageReaction } from "../../types/message-reaction.js";
 import type { MessagePage } from "../../../support/types/message-page.js";
 import type { Message } from "../../../support/types/message.js";
 export interface Messaging {
+  react?(channel: string, timestamp: string, name: string): Promise<void>;
+  reactions?(channel: string, timestamp: string): Promise<MessageReaction[]>;
   historyPage(
     channel: string,
     oldest: string,

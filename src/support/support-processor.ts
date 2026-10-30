@@ -1,3 +1,4 @@
+import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
 import type { Store } from "../storage/store.js";
 import type { Config } from "../config/types/config.js";
@@ -107,7 +108,12 @@ export class SupportProcessor {
         signal,
       );
       if (result.status !== "passed") {
-        await this.ask(run, result.question ?? result.summary, result.options);
+        await this.ask(
+          run,
+          result.question ?? result.summary,
+          result.options,
+          result.decision,
+        );
         return;
       }
       run.data.plan = planSchema.parse(result.data);
@@ -172,8 +178,9 @@ export class SupportProcessor {
     run: Run,
     question: string,
     options: string[],
+    proposal?: DecisionProposal,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options);
+    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
     if (["investigating", "routing", "e2e"].includes(run.state))
       this.workflow.transition(run, "ASK");
     else this.store.log(run.id, "Private decision pending at " + run.state);

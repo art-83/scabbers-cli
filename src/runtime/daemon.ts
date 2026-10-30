@@ -358,6 +358,7 @@ export async function daemon(directory: string): Promise<void> {
           nextSweep = 0;
         },
         (payload) => decisions!.action(payload),
+        (event) => decisions!.reaction(event),
       );
       await socket.start();
     } catch {

@@ -1,3 +1,4 @@
+import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
 import type { Store } from "../storage/store.js";
 import type { Run } from "../workflows/types/run.js";
@@ -50,7 +51,12 @@ export class FeatureAnalysis {
         signal,
       );
       if (result.status !== "passed") {
-        await this.ask(run, result.question ?? result.summary, result.options);
+        await this.ask(
+          run,
+          result.question ?? result.summary,
+          result.options,
+          result.decision,
+        );
         return true;
       }
       const updated = featureFormSchema.parse(result.data);
@@ -100,7 +106,12 @@ export class FeatureAnalysis {
         signal,
       );
       if (result.status !== "passed") {
-        await this.ask(run, result.question ?? result.summary, result.options);
+        await this.ask(
+          run,
+          result.question ?? result.summary,
+          result.options,
+          result.decision,
+        );
         return;
       }
       const analysis = z
@@ -132,7 +143,12 @@ export class FeatureAnalysis {
       signal,
     );
     if (result.status !== "passed") {
-      await this.ask(run, result.question ?? result.summary, result.options);
+      await this.ask(
+        run,
+        result.question ?? result.summary,
+        result.options,
+        result.decision,
+      );
       return;
     }
     this.acceptFeatureForm(run, featureFormSchema.parse(result.data));
@@ -171,8 +187,9 @@ export class FeatureAnalysis {
     run: Run,
     question: string,
     options: string[],
+    proposal?: DecisionProposal,
   ): Promise<void> {
-    await this.decisions.ask(run.id, question, options);
+    await this.decisions.ask(run.id, question, options, Date.now(), proposal);
     if (run.state === "investigating") this.workflow.transition(run, "ASK");
   }
 }

@@ -307,3 +307,11 @@ npm pack --dry-run
 - [Architecture](docs/architecture.md)
 - [Verification evidence and remaining gaps](docs/verification.md)
 - [External prerequisites and limits](docs/limits.md)
+
+### Private decision replies
+
+Reply directly in the owner’s private Slack thread; no decision ID or prefix is required. Scabbers matches the channel and thread, verifies the pinned owner, and accepts only messages sent after the current question. Older answers cannot answer a later question in the same thread. Legacy ID-prefixed replies remain supported. If multiple questions share a thread, an unqualified reply is not guessed.
+
+When evidence supports concrete alternatives, the analysis proposes numbered choices, their consequences and an explained recommendation. A recommendation never supplies approval. Questions needing unknown facts can remain open. Scabbers adds numbered reactions to the question itself; select one, use an available button, send its number, or write a different answer in the thread. Only the owner’s reaction counts; bot reactions only display the choices. Multiple selected reactions discovered by polling remain unresolved. With Socket Mode, a valid owner reaction event selects that option immediately.
+
+Slack requires `reactions:read` and `reactions:write` for reaction choices. If those calls fail, buttons and thread replies remain available. Reaction events use Socket Mode when connected; the existing private-decision poll also checks reactions and replies every fifteen seconds. Existing pending questions are not reposted or changed: their already sent owner replies can be recovered on the next poll after loading this version.

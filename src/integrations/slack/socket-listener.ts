@@ -5,11 +5,21 @@ export class SocketListener {
     token: string,
     wake: () => void,
     onAction: (payload: unknown) => Promise<void>,
+    onReaction?: (event: unknown) => Promise<void>,
   ) {
     this.client = new SocketModeClient({ appToken: token });
     this.client.on("error", () => wake());
     this.client.on("message", async ({ ack }) => {
       await ack();
+      wake();
+    });
+    this.client.on("reaction_added", async ({ ack, event }) => {
+      await ack();
+      try {
+        await onReaction?.(event);
+      } catch {
+        wake();
+      }
       wake();
     });
     this.client.on("interactive", async ({ ack, body }) => {

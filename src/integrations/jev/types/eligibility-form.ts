@@ -1,3 +1,4 @@
+import { decisionProposalSchema } from "../../../decisions/proposal-schema.js";
 import { z } from "zod";
 export const eligibilitySchema = z.object({
   nature: z.object({
@@ -51,6 +52,7 @@ export const eligibilitySchema = z.object({
       z.object({
         question: z.string(),
         proposed_default: z.string().nullable(),
+        proposal: decisionProposalSchema.optional(),
       }),
     )
     .max(6),
