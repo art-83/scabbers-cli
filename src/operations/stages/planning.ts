@@ -5,6 +5,7 @@ import { operationalPlanSchema } from "../plan-schema.js";
 import { OperationalIdentity } from "../plan-identity.js";
 import { Workflow } from "../../workflows/workflow.js";
 import { privateNames } from "../../integrations/jira/private-names.js";
+import { InvestigationJournal } from "../../runtime/investigation-journal.js";
 export class OperationalPlanning implements OperationalStage {
   constructor(private readonly context: OperationalContext) {}
   async run(run: Run, signal: AbortSignal): Promise<void> {
@@ -45,6 +46,8 @@ export class OperationalPlanning implements OperationalStage {
     );
     store.save(run);
     await this.context.documentation.plan(run);
+    run.data.operationalPlanDocumented = true;
+    store.save(run);
     if (!this.context.judge?.classifyOperational)
       throw new Error(
         "Operational-specific JEV evaluator is unavailable; no execution eligibility granted",
@@ -54,6 +57,15 @@ export class OperationalPlanning implements OperationalStage {
       run.data.identifyingNames as string[],
     );
     store.save(run);
+    if (plan.mode === "manual") {
+      await new InvestigationJournal(store, jira).eligibility(
+        run,
+        run.data.jev,
+        plan,
+      );
+      new Workflow(store).transition(run, "MANUAL_PLAN");
+      return;
+    }
     new Workflow(store).transition(run, "PLAN");
   }
 }

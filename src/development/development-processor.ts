@@ -26,6 +26,8 @@ import { Workflow } from "../workflows/workflow.js";
 import { ScopePolicy } from "../development/scope-policy.js";
 import { Workspace } from "../development/workspace.js";
 import { ProcessRunner } from "../runtime/process-runner.js";
+import { InvestigationJournal } from "../runtime/investigation-journal.js";
+import type { EligibilityVerdict } from "../integrations/types/eligibility-verdict.js";
 export class DevelopmentProcessor {
   private readonly workflow: Workflow;
   private readonly workspace: Workspace;
@@ -214,20 +216,33 @@ export class DevelopmentProcessor {
           "JEV unavailable. Configure TYPESAFE_API_KEY or SSM; eligibility remains pending",
         );
       const names = (run.data.identifyingNames as string[] | undefined) ?? [];
+      const journal = new InvestigationJournal(this.store, this.jira);
+      const eligibilityDigest = journal.fingerprint({
+        form: run.kind === "feature" ? run.data.featureForm : form,
+        names,
+      });
       const classification =
-        run.kind === "feature"
-          ? await (() => {
-              if (!this.jev?.classifyFeature)
-                throw new Error("Feature-specific JEV evaluator unavailable");
-              return this.jev.classifyFeature(
-                featureFormSchema.parse(run.data.featureForm),
-                names,
-              );
-            })()
-          : await this.jev.classify(form, names);
+        run.data.jev && run.data.jevFormDigest === eligibilityDigest
+          ? (run.data.jev as EligibilityVerdict)
+          : run.kind === "feature"
+            ? await (() => {
+                if (!this.jev?.classifyFeature)
+                  throw new Error("Feature-specific JEV evaluator unavailable");
+                return this.jev.classifyFeature(
+                  featureFormSchema.parse(run.data.featureForm),
+                  names,
+                );
+              })()
+            : await this.jev.classify(form, names);
       run.data.jev = classification;
+      run.data.jevFormDigest = eligibilityDigest;
       this.store.save(run);
       if (classification.classification !== "A-candidate") {
+        await journal.eligibility(
+          run,
+          classification,
+          run.kind === "feature" ? run.data.featureForm : form,
+        );
         this.workflow.transition(run, "REJECT");
         return;
       }

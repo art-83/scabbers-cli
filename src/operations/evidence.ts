@@ -15,6 +15,15 @@ export class OperationalEvidence {
     );
     if (event === "PLAN") operationalPlanSchema.parse(run.data.operationalPlan);
     if (
+      event === "MANUAL_PLAN" &&
+      (operationalPlanSchema.parse(run.data.operationalPlan).mode !==
+        "manual" ||
+        run.data.operationalPlanDocumented !== true)
+    )
+      throw new Error(
+        "A documented manual plan is required for a documentation-only handoff",
+      );
+    if (
       event === "PLAN_APPROVED" &&
       approvals.answer(run, "plan") !== approvals.option("plan")
     )

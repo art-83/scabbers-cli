@@ -23,7 +23,13 @@ export class OperationalDocumentation {
       run.id,
       String(run.data.issueKey),
       "Operational Tasks — proposta de plano; nenhuma implementação ou execução autorizada.\n" +
-        JSON.stringify(plan, null, 2),
+        JSON.stringify(plan, null, 2) +
+        "\n\nLimitações da investigação:\n" +
+        JSON.stringify(
+          run.data.operationalPreparationLimitations ?? {},
+          null,
+          2,
+        ),
       "operational-plan:" + new OperationalIdentity().plan(plan),
     );
   }

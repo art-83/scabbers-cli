@@ -71,6 +71,9 @@ export class OperationalIntake {
           !["done", "handoff", "cancelled"].includes(r.state),
       );
     if (active) return;
+    const source = this.store
+      .list()
+      .find((r) => r.kind === "support" && r.data.destination === issue.key);
     const snapshot = this.profile();
     this.store.create(
       "operational",
@@ -80,6 +83,14 @@ export class OperationalIntake {
       {
         issueKey: issue.key,
         issue,
+        ...(source
+          ? {
+              sourceRun: source.id,
+              messages: source.data.messages,
+              originThreads: source.data.originThreads,
+              jiraIssues: source.data.jiraIssues,
+            }
+          : {}),
         soulSnapshot: snapshot,
         ownerSlackUser: this.config.slack.user,
       },

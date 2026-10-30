@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { OperationalContext } from "./types/context.js";
 import type { Run } from "../workflows/types/run.js";
 import { Workflow } from "../workflows/workflow.js";
+import { operationalPlanSchema } from "./plan-schema.js";
 export class OperationalResult {
   constructor(private readonly context: OperationalContext) {}
   async read<T>(
@@ -43,6 +44,24 @@ export class OperationalResult {
       this.context.store.save(run);
       new Workflow(this.context.store).transition(run, "ASK");
       return undefined;
+    }
+    const manualPlan =
+      run.state === "investigating" && result.status === "blocked"
+        ? operationalPlanSchema.safeParse(
+            result.data.creationPlan ?? result.data,
+          )
+        : undefined;
+    if (manualPlan?.success && manualPlan.data.mode === "manual") {
+      const compatible = schema.safeParse(manualPlan.data);
+      if (compatible.success) {
+        run.data.operationalPreparationLimitations = {
+          summary: result.summary,
+          evidence: result.evidence,
+          missingCapabilities: result.data.missingCapabilities ?? [],
+        };
+        this.context.store.save(run);
+        return compatible.data;
+      }
     }
     if (result.status !== "passed")
       throw new Error(

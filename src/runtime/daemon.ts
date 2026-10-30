@@ -31,6 +31,8 @@ import { DecisionService } from "../decisions/decision-service.js";
 import { SocketListener } from "../integrations/slack/socket-listener.js";
 import { Intake } from "../support/intake.js";
 import { StageExecutor } from "./stage-executor.js";
+import { InvestigatedStageRunner } from "./investigated-stage-runner.js";
+import { InvestigationJournal } from "./investigation-journal.js";
 import { Pipeline } from "./pipeline.js";
 import { WorkerPool } from "./worker-pool.js";
 import { OperationalIntake } from "../operations/intake.js";
@@ -343,12 +345,16 @@ export async function daemon(directory: string): Promise<void> {
       ["claude", new ClaudeEngine(undefined, browser)],
       ["codex", new CodexEngine(undefined, browser)],
     ] as const);
-    const executor = new StageExecutor(
+    const executor = new InvestigatedStageRunner(
       store,
-      engines,
-      soul,
-      config,
-      jira?.imageEvidence(join(directory, "jira-images")),
+      new StageExecutor(
+        store,
+        engines,
+        soul,
+        config,
+        jira?.imageEvidence(join(directory, "jira-images")),
+      ),
+      jira,
     );
     const pipeline = new Pipeline(
       store,
@@ -365,21 +371,12 @@ export async function daemon(directory: string): Promise<void> {
       config.workers,
       (run, signal) => pipeline.step(run, signal),
       async (run, message) => {
-        const d = await decisions!.ask(
+        await new InvestigationJournal(store, jira).blocker(run, message);
+        store.log(
           run.id,
-          "Como deseja acompanhar este bloqueio técnico?",
-          ["Retry checkpoint", "Pause"],
-          Date.now(),
-          undefined,
-          {
-            summary:
-              "A execução parou nesta etapa e o progresso salvo foi preservado.",
-            problem: message.slice(0, 1200),
-            whyHuman:
-              "A causa técnica precisa ser resolvida antes de repetir a etapa. Você pode pausar; repetir sem corrigir tende a produzir o mesmo erro.",
-          },
+          "Technical blocker documented in Jira; no private decision or reminder was created",
         );
-        return d.id;
+        return undefined;
       },
     );
     try {

@@ -4,7 +4,9 @@ export const operationalMachine = createMachine({
   initial: "queued",
   states: {
     queued: { on: { START: "investigating" } },
-    investigating: { on: { PLAN: "planApproval", ASK: "waiting" } },
+    investigating: {
+      on: { PLAN: "planApproval", ASK: "waiting", MANUAL_PLAN: "handoff" },
+    },
     waiting: { on: { ANSWER: "investigating" } },
     planApproval: {
       on: {

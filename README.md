@@ -351,7 +351,7 @@ Support investigation also reads up to three explicit source-thread links from t
 
 ### Context in private Slack messages
 
-Initial follow-ups, decisions, reminders and checkpoint blockers identify the workflow as **Suporte · Bug Triage**, **Suporte · Bug Fix** or **Feature · Development**, with the verified card title/link and the stage. Decisions explain the known context, concrete problem, reason for asking and available choices. Recommendations show their rationale when supplied by the analysis. Technical failures are labeled as execution blockers; retry means trying after the cause is fixed, not authorizing a product change.
+Initial follow-ups, decisions and reminders identify the workflow as **Suporte · Bug Triage**, **Suporte · Bug Fix**, **Feature · Development** or **Operação · Operational Tasks**, with the verified card title/link and the stage. Decisions explain the known context, concrete problem, reason for asking and available choices. Recommendations show their rationale when supplied by the analysis. Technical failures are documented as checkpoint blockers in Jira without an automatic private question; retry means trying after the cause is fixed, not authorizing a product change.
 
 Context is snapshotted per decision/version in SQLite, so reminders retain the original facts across restarts. Existing questions are not reposted or silently rewritten; legacy reminders use only verified saved metadata. Numbered reactions, buttons and free thread replies keep their existing owner, channel and version checks. Sensitive text is redacted, untrusted text escaped and Slack element limits preserved.
 
@@ -365,7 +365,8 @@ Operational **Tickets** created by Bug Triage are separate from Bug Fix and feat
 flowchart TD
     Ticket[Owner-assigned operational Ticket] --> Investigate[Evidence and operational-specific JEV]
     Investigate --> Plan[Document creation plan and risks]
-    Plan --> Approval1{Owner approves this plan?}
+    Plan -->|Manual-only plan| Handoff[Document limitations and hand off without a private creation question]
+    Plan -->|Executable plan| Approval1{Owner approves this plan?}
     Approval1 -->|Explicit approval| Build[Prepare scripts or manual runbook]
     Build --> Test[Isolated local fixture tests]
     Test --> Review[Independent implementation review]
@@ -387,3 +388,13 @@ The initial executable path supports local scripts and AWS targets with an expli
 The JEV rubric is separate (`jev-operational-plan-1.0.0`, provisional threshold 0.89); it evaluates bounded operational preparation, not proof of a software bug. A non-candidate can still be documented but receives no automatic execution option. Jira receives the complete files and review evidence before the second approval, progressing only through available engineering transitions to **Ready for Code Review**. If no permitted path exists, the panel records a notice rather than moving to QA/Done. Being ready for review never means an operation ran. After an uncertain launch, inspect actual state before an explicitly reapproved plan; there is no automatic rollback or repeated mutation.
 
 For a manual first test, open `scabbers`, switch to **Operational Tasks**, review the plan in Jira and answer its private Slack decision. Review generated files and local test evidence before considering the second approval. Closing the CLI stops processing and preserves checkpoints. This queue shares the existing global worker limit; operations targeting the same AWS account are serialized locally.
+
+## Investigation records and human handoffs
+
+Read-only analysis results are archived in SQLite and published as detailed Jira comments before the workflow consumes them. The record includes stage, pinned revisions, observed evidence, conclusions, hypotheses, missing capabilities, risks and the complete structured analysis, plus the question, alternatives and recommendation when provided. Large records are split into numbered comments with durable markers; credential patterns are redacted. Feature analyses are documented on owner-assigned scope cards, including context from foreign parents without writing to those parents. If no verified writable Jira target is available, the diagnostic remains local and the limitation is logged.
+
+A technical checkpoint failure records its cause in Jira without manufacturing a private Slack question or reminder. Genuine product decisions and mandatory plan, implementation, publication and staging approvals still use the authenticated owner conversation. JEV-ineligible handoffs retain the plan and rubric result in Jira; rejection does not mean a product requirement is invalid. Routine reversible choices within approved scope remain autonomous.
+
+The full investigation result is saved before Jira publication. If publication fails, resuming the same unchanged checkpoint reuses that result to finish documentation rather than calling the LLM again. A changed owner answer, semantic requirement, scope, revision, implementation or repair input invalidates that pending-result cache. An unchanged JEV result is reused if only its Jira handoff comment failed. A valid blocked **manual** operational creation plan is retained for documentation and the dedicated eligibility assessment, then handed off without asking the owner to approve creation of a non-executable artifact; an executable plan marked blocked is not promoted into an authorized action. No approval is inferred from a diagnostic record or a Retry/Resume command.
+
+These records contain reported observations and explicit limitations, not hidden model reasoning or a claim that unavailable plugins were used. Native tool availability remains an engine-adapter capability: having read-only credentials does not itself expose a DynamoDB or provider-history tool. Missing tools must be documented, not replaced by guessed production state. This policy does not change the CLI-owned runtime lifecycle.

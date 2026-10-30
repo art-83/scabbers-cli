@@ -8,7 +8,10 @@ export class WorkerPool {
     private readonly store: Store,
     private readonly limit: number,
     private readonly step: (run: Run, signal: AbortSignal) => Promise<void>,
-    private readonly onFailure?: (run: Run, message: string) => Promise<string>,
+    private readonly onFailure?: (
+      run: Run,
+      message: string,
+    ) => Promise<string | undefined>,
   ) {}
   get activeCount(): number {
     return this.active.size;
@@ -103,15 +106,16 @@ export class WorkerPool {
             );
             if (!current.paused && this.onFailure) {
               try {
-                current.data.blockerDecision = await this.onFailure(
+                const decisionId = await this.onFailure(
                   current,
                   current.error!,
                 );
+                if (decisionId) current.data.blockerDecision = decisionId;
                 this.store.save(current);
               } catch {
                 this.store.log(
                   run.id,
-                  "Private blocker notification unavailable; reconnect Slack and resume this checkpoint",
+                  "Blocker documentation unavailable; the local checkpoint and diagnostic logs were preserved",
                 );
               }
             }
