@@ -12,6 +12,7 @@ import { choose, text, secret } from "../tui/prompts.js";
 
 export const settingsSections = [
   "engine",
+  "models",
   "workers",
   "schedule",
   "paths",
@@ -31,6 +32,7 @@ export function settingsItems(
   );
   return [
     { key: "engine", label: `Engine: ${config.engine}` },
+    { key: "models", label: "Models, reasoning effort and quota fallback" },
     { key: "workers", label: `Concurrent workers: ${config.workers}` },
     {
       key: "schedule",
@@ -140,6 +142,61 @@ export async function configureSetting(
         ],
         config.engine,
       )) as Config["engine"];
+    } else if (section === "models") {
+      for (;;) {
+        const selected = await prompts.choose("Models and effort", [
+          { label: "Codex model and effort", value: "codex" },
+          { label: "Claude model and effort", value: "claude" },
+          { label: "Automatic fallback on usage quota", value: "fallback" },
+          { label: "Done", value: "done" },
+        ]);
+        if (selected === "done") break;
+        if (selected === "fallback") {
+          config.fallback.enabled =
+            (await prompts.choose(
+              "Switch engines automatically only for recognized usage limits?",
+              [
+                { label: "Enabled", value: "yes" },
+                { label: "Disabled", value: "no" },
+              ],
+              config.fallback.enabled ? "yes" : "no",
+            )) === "yes";
+          await fields("Fallback order and cooldown", config.fallback, [
+            {
+              key: "order",
+              label: "Engine preference order (JSON array)",
+              kind: "json",
+            },
+            {
+              key: "cooldownSeconds",
+              label: "Quota cooldown seconds",
+              kind: "number",
+            },
+          ]);
+        } else {
+          const engine = selected as Config["engine"];
+          await fields(`${engine} model`, config.engines[engine], [
+            {
+              key: "model",
+              label: "Model ID or native alias (- uses native default)",
+            },
+          ]);
+          const levels =
+            engine === "claude"
+              ? ["low", "medium", "high", "xhigh", "max"]
+              : ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
+          const effort = await prompts.choose(
+            "Reasoning effort (availability depends on the selected model)",
+            [
+              { label: "Native model default", value: "default" },
+              ...levels.map((level) => ({ label: level, value: level })),
+            ],
+            config.engines[engine].effort ?? "default",
+          );
+          if (effort === "default") delete config.engines[engine].effort;
+          else Object.assign(config.engines[engine], { effort });
+        }
+      }
     } else if (section === "workers") {
       config.workers = Number(
         await prompts.choose(

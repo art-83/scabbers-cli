@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { browserSchema } from "./browser.js";
+import {
+  engineSettingsSchema,
+  fallbackSchema,
+} from "../engine-options-schema.js";
 import { scheduleSchema } from "./schedule.js";
 export const configSchema = z.strictObject({
   $schema: z.string().optional(),
@@ -8,6 +12,8 @@ export const configSchema = z.strictObject({
   browser: browserSchema.default({}),
   version: z.literal(1).default(1),
   engine: z.enum(["claude", "codex"]).default("claude"),
+  engines: engineSettingsSchema.prefault({}),
+  fallback: fallbackSchema.prefault({}),
   workers: z.number().int().min(1).max(16).default(3),
   remoteEnabled: z.boolean().default(false),
   credentialKeys: z

@@ -108,3 +108,30 @@ Workflow mappings are optional and keyed by `PROJECT/Issue Type`. Each configure
 Feature families use the current shared delivery machine and a distinct feature eligibility rubric. Native sessions, root/member identities, requirements fingerprints and partial analysis/discovery are preserved. Scope changes block existing attempts rather than changing their approved plan. Very large analyses exceed explicit context/JEV budgets and require an owner scope decision; no descendants are silently dropped.
 
 After installing this runtime change, restart the background process manually to load it. Reopening only the panel does not upgrade an already running runtime.
+
+## Engine models, effort and quota fallback
+
+`engine` chooses the primary engine. `engines.codex` and `engines.claude` independently define `model` and `effort`; omitted values use the native engine/model defaults. Explicit values are passed to both CLI execution and native-browser execution, including the Claude Agent SDK. Config → Models, reasoning effort and quota fallback edits these same JSON fields. Values must be supported by the installed client and selected model; invalid combinations block rather than silently selecting a different model.
+
+```json
+{
+  "engine": "codex",
+  "engines": {
+    "codex": { "model": "your-codex-model", "effort": "medium" },
+    "claude": { "model": "sonnet", "effort": "high" }
+  },
+  "fallback": {
+    "enabled": true,
+    "order": ["codex", "claude"],
+    "cooldownSeconds": 300
+  }
+}
+```
+
+The model names above are illustrative; use a model available to your account. Codex effort is model/client-dependent. Claude efforts exposed by the installed SDK are low, medium, high, xhigh and max. See the official [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and [Claude CLI reference](https://code.claude.com/docs/en/cli-reference).
+
+Engine model/effort profiles are pinned when a workflow first invokes an engine. Editing settings affects new workflows; it does not silently change a running native conversation. Read-only browser diagnostics and SOUL setup use the current selected profile directly. They do not switch engines automatically, so a connection check still tests the engine selected by the user.
+
+Quota fallback is off by default. When enabled, a recognized native usage/rate-limit failure can continue the same workflow stage with another configured engine after the previous native process exits. SQLite retains the workflow, collected evidence, workspaces, pinned SOUL, per-engine session IDs and a handoff record. A native conversation is not imported between products: the target engine resumes its own saved session or starts with the persisted structured context. Review sessions remain separate from implementation sessions.
+
+Fallback does not authorize new tools, sites or publication. Authentication errors, permission refusals, invalid models, malformed protocols and the Claude per-turn dollar budget do not trigger it. Recovered transient rate limits followed by native success do not trigger it either. The cooldown and saved handoff history prevent immediate switching loops; if both engines are unavailable, the checkpoint stays blocked and the owner is notified through the existing decision flow. No fallback to a paid API/provider or global native settings change is added.

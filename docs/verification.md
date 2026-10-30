@@ -6,7 +6,7 @@ Delivery review date: **2026-10-30**. Checkout: `/home/arthur-nicolas/Projects/s
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **100 tests in 23 files** and covers:
+The final suite contains **116 tests in 24 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -77,3 +77,5 @@ Development feature coverage includes paginated board discovery, cross-project a
 The structural review moved domain contracts into dedicated type files across feature discovery, configuration menus, browser diagnostics, runtime protocol, logging and the mascot. Feature behavior is grouped in injected services/models (`JiraCard`, `Hierarchy`, `FamilyPolicy`, `FeatureAnalysis`, `FeatureDelivery`, `FeatureIntake`). Formatting helpers and React components remain functions.
 
 A read-only invocation of the new CLI against the actual Jira configuration confirmed Visão Unificada Nola, saved filter 10594 and status IDs 10003/1. Its bounded first batch produced one complete family, four explicit exclusions and an unfinished family checkpoint, with additional candidates queued. This confirms the real discovery transport and saved partial progress, not a complete board inventory or feature delivery. No runtime was started for that preview.
+
+Engine-profile tests verify exact CLI model/effort arguments, Claude browser SDK options, native quota error classification, successful transient-retry handling, saved per-engine sessions, pinned profiles across configuration changes, both-engine exhaustion without loops and disabled fallback. Permission/authentication/budget errors cannot trigger handoff. A fresh-review handoff preserves the older implementation session, and a still-running native process blocks a switch. These use process doubles and temporary private state; no real usage limit was induced and no live model invocation was needed.

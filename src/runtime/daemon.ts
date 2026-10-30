@@ -152,6 +152,8 @@ export async function daemon(directory: string): Promise<void> {
                 ).length,
                 scopeChanged: run.data.scopeChanged,
                 jev: run.data.jev,
+                engineProfiles: run.data.engineProfiles,
+                engineHandoffs: run.data.engineHandoffs,
               },
               snapshot: null,
               logs: store.logs(run.id),

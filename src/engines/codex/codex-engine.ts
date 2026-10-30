@@ -1,3 +1,5 @@
+import { NativeQuotaError } from "../errors/quota-error.js";
+import { codexOptionsSchema } from "../../config/engine-options-schema.js";
 import { engineEnvironment } from "../engine-environment.js";
 import { defaultBrowserSession } from "../../browser/session.js";
 import type { BrowserRuntime } from "../abstractions/interface/browser-runtime.js";
@@ -35,6 +37,9 @@ export class CodexEngine implements Engine {
       input.mode === "browser" ? this.nativeConfiguration() : undefined;
     let session: string | null = input.sessionId;
     let text = "";
+    let quota = false;
+    let completed = false;
+    const options = codexOptionsSchema.parse(input.options ?? {});
     const args = [
       "exec",
       "--ignore-user-config",
@@ -48,6 +53,12 @@ export class CodexEngine implements Engine {
       "sandbox_workspace_write.network_access=false",
     ];
     if (native) args.push(...native.args);
+    if (options.model) args.push("--model", options.model);
+    if (options.effort)
+      args.push(
+        "-c",
+        `model_reasoning_effort=${JSON.stringify(options.effort)}`,
+      );
     if (input.mode === "edit" && input.directories?.length)
       args.push(
         "-c",
@@ -77,6 +88,15 @@ export class CodexEngine implements Engine {
         }),
       (line) => {
         const event = JSON.parse(line);
+        if (event.type === "turn.completed") completed = true;
+        if (
+          ["error", "turn.failed"].includes(event.type) &&
+          NativeQuotaError.matches(
+            event.error?.code ?? event.code,
+            event.error?.message ?? event.message,
+          )
+        )
+          quota = true;
         if (
           event.type === "item.completed" &&
           event.item?.type === "agent_message"
@@ -120,6 +140,8 @@ export class CodexEngine implements Engine {
       native?.environment ?? engineEnvironment(),
       (line) => input.onActivity?.("stderr: " + line),
     );
+    if (quota && (!completed || result.code !== 0))
+      throw new NativeQuotaError();
     if (result.code || !session)
       throw new Error("Codex failed; inspect saved session before retry");
     return stageResultSchema.parse(JSON.parse(text));

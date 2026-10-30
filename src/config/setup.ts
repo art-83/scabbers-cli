@@ -217,6 +217,7 @@ export async function setup(store: Store, directory: string): Promise<void> {
     const engine =
       config.engine === "claude" ? new ClaudeEngine() : new CodexEngine();
     const result = await engine.execute({
+      options: config.engines[config.engine],
       runId: "profile-setup",
       stage: "profile-proposal",
       cwd: process.cwd(),

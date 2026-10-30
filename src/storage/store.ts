@@ -138,10 +138,11 @@ export class Store {
     if (current?.state === "cancelled" && run.state !== "cancelled") return;
     this.db
       .prepare(
-        "UPDATE runs SET state=?,sessionId=?,snapshot=?,data=?,error=?,updatedAt=? WHERE id=?",
+        "UPDATE runs SET state=?,engine=?,sessionId=?,snapshot=?,data=?,error=?,updatedAt=? WHERE id=?",
       )
       .run(
         run.state,
+        run.engine,
         run.sessionId,
         run.snapshot,
         JSON.stringify(run.data),

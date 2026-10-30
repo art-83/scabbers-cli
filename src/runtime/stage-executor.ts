@@ -1,3 +1,6 @@
+import { NativeQuotaError } from "../engines/errors/quota-error.js";
+import { EngineFallback } from "../engines/engine-fallback.js";
+import type { EngineSessions } from "../engines/types/engine-handoff.js";
 import type { Family } from "../features/types/family.js";
 import type { ProfileSnapshot } from "../profile/types/profile-snapshot.js";
 import { browserOrigins, originsCovered } from "../browser/origin-policy.js";
@@ -45,6 +48,11 @@ export class StageExecutor implements StageRunner {
       throw new Error(
         `Required skill ${skill} missing. Configure skillPaths; no substitute evidence will be generated.`,
       );
+    if (!run.data.engineProfiles) {
+      run.data.engineProfiles = structuredClone(this.config.engines);
+      this.store.save(run);
+    }
+    const engineProfiles = run.data.engineProfiles as Config["engines"];
     const engine = this.engines.get(run.engine);
     if (!engine) throw new Error("Engine adapter unavailable");
     if (mode === "browser" && !engine.capabilities.nativeBrowser)
@@ -112,45 +120,79 @@ export class StageExecutor implements StageRunner {
     this.store.save(run);
     this.store.log(
       run.id,
-      `${run.state}: starting ${run.engine} ${mode} stage${run.sessionId ? " (resuming native session)" : ""}`,
+      `${run.state}: starting ${run.engine} ${mode} stage (model ${engineProfiles[run.engine].model ?? "native default"}, effort ${engineProfiles[run.engine].effort ?? "native default"})${run.sessionId ? " (resuming native session)" : ""}`,
     );
-    const result = await engine.execute({
-      runId: run.id,
-      stage: run.state,
-      prompt,
-      cwd,
-      sessionId: fresh ? null : run.sessionId,
-      mode,
-      browserAuthorized: run.data.browserAuthorized === true,
-      ...(mode === "browser" ? { allowedOrigins } : {}),
-      directories:
-        run.data.workspaces || run.data.analysisWorkspaces
-          ? Object.values(
-              (run.data.workspaces ?? run.data.analysisWorkspaces) as Record<
-                string,
-                string
-              >,
-            )
-          : this.config.repositories.map((r) => r.path),
-      readDirectories: [dirname(path)],
-      signal,
-      onActivity: (message) =>
-        this.store.log(run.id, `${run.state} · ${run.engine}: ${message}`),
-      onProcess: (pid) => {
-        run.data.inFlightProcess = pid;
-        this.store.save(run);
-      },
-      onSession: (id) => {
-        if (fresh) {
-          run.data.reviewSession = id;
-        } else {
-          if (run.sessionId && run.sessionId !== id)
-            throw new Error("Native conversation changed unexpectedly");
-          run.sessionId = id;
+    let result: StageResult;
+    try {
+      result = await engine.execute({
+        options: engineProfiles[run.engine],
+        runId: run.id,
+        stage: run.state,
+        prompt,
+        cwd,
+        sessionId: fresh ? null : run.sessionId,
+        mode,
+        browserAuthorized: run.data.browserAuthorized === true,
+        ...(mode === "browser" ? { allowedOrigins } : {}),
+        directories:
+          run.data.workspaces || run.data.analysisWorkspaces
+            ? Object.values(
+                (run.data.workspaces ?? run.data.analysisWorkspaces) as Record<
+                  string,
+                  string
+                >,
+              )
+            : this.config.repositories.map((r) => r.path),
+        readDirectories: [dirname(path)],
+        signal,
+        onActivity: (message) =>
+          this.store.log(run.id, `${run.state} · ${run.engine}: ${message}`),
+        onProcess: (pid) => {
+          run.data.inFlightProcess = pid;
+          this.store.save(run);
+        },
+        onSession: (id) => {
+          if (fresh) {
+            run.data.reviewSession = id;
+          } else {
+            if (run.sessionId && run.sessionId !== id)
+              throw new Error("Native conversation changed unexpectedly");
+            run.sessionId = id;
+            const sessions = (run.data.engineSessions ?? {}) as EngineSessions;
+            sessions[run.engine] = { id, options: engineProfiles[run.engine] };
+            run.data.engineSessions = sessions;
+          }
+          this.store.save(run);
+        },
+      });
+    } catch (error) {
+      if (error instanceof NativeQuotaError && !signal.aborted) {
+        if (run.data.inFlightProcess) {
+          try {
+            process.kill(Number(run.data.inFlightProcess), 0);
+            throw new Error(
+              "Quota reached while native process is still alive; wait before retrying the saved checkpoint",
+            );
+          } catch (probe) {
+            if ((probe as NodeJS.ErrnoException).code !== "ESRCH") throw probe;
+          }
         }
+        run.data.inFlight = false;
+        delete run.data.inFlightProcess;
         this.store.save(run);
-      },
-    });
+        if (new EngineFallback(this.store, this.config).switch(run, fresh))
+          return this.execute(
+            run,
+            instruction,
+            skill,
+            mode,
+            cwd,
+            signal,
+            fresh,
+          );
+      }
+      throw error;
+    }
     const evidence = (run.data.stageEvidence ?? []) as unknown[];
     evidence.push({
       stage: run.state,

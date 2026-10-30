@@ -79,5 +79,14 @@
     "column": "To Do",
     "pollSeconds": 60,
     "transitions": {}
+  },
+  "engines": {
+    "codex": {},
+    "claude": {}
+  },
+  "fallback": {
+    "enabled": false,
+    "order": ["codex", "claude"],
+    "cooldownSeconds": 300
   }
 }

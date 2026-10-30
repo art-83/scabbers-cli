@@ -53,6 +53,8 @@ Personal `SOUL.md` lives beside the selected settings.json, normally `~/.config/
 
 Tokens entered in Config persist in a private local `credentials.json` with permissions `0600`; `settings.json` stores opaque `credentialKeys` references. This is plaintext storage protected by filesystem permissions. Selected local references take precedence over environment credentials; environment and configured AWS SSM references provide fallback when no local reference is selected. Replacing a token reloads the affected connections after active stages finish. Business integration tokens are not passed into engine subprocess environments; engines use their own authentication.
 
+Model and effort are configurable per engine in `engines.codex` and `engines.claude`, through settings.json or **Config → Models, reasoning effort and quota fallback**. Native CLI/SDK calls receive explicit selected values. Profiles are pinned for running workflows. Optional `fallback` switches between configured engines only after a recognized usage-limit failure, preserving structured workflow context and separate native session IDs. Permissions, authentication and spend-cap failures remain blocked. See the [engine settings reference](docs/configuration.md#engine-models-effort-and-quota-fallback).
+
 ### Terminal controls
 
 | Control                | Action                                                     |

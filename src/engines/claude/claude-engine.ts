@@ -1,3 +1,5 @@
+import { NativeQuotaError } from "../errors/quota-error.js";
+import { claudeOptionsSchema } from "../../config/engine-options-schema.js";
 import { accessSync, constants, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
@@ -37,6 +39,8 @@ export class ClaudeEngine implements Engine {
   }
   private async executeBrowser(input: StageInput): Promise<StageResult> {
     const session = input.sessionId ?? randomUUID();
+    const options = claudeOptionsSchema.parse(input.options ?? {});
+    let quota = false;
     input.onSession(session);
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -58,6 +62,8 @@ export class ClaudeEngine implements Engine {
             throw new Error("Claude CLI not found on PATH");
           })(),
           cwd: input.cwd,
+          ...(options.model ? { model: options.model } : {}),
+          ...(options.effort ? { effort: options.effort } : {}),
           env: engineEnvironment(),
           stderr: (line) => input.onActivity?.("stderr: " + line),
           abortController: controller,
@@ -103,6 +109,7 @@ export class ClaudeEngine implements Engine {
       });
       for await (const message of messages) {
         if (message.type === "assistant") {
+          if (NativeQuotaError.matches(message.error, undefined)) quota = true;
           for (const block of message.message.content) {
             if (block.type === "text")
               input.onActivity?.("Assistant: " + block.text);
@@ -115,15 +122,27 @@ export class ClaudeEngine implements Engine {
         if ("session_id" in message && message.session_id !== session)
           throw new Error("Claude did not confirm the saved native session");
         if (message.type === "result") {
-          if (message.subtype !== "success" || message.is_error)
+          if (message.subtype !== "success" || message.is_error) {
+            if (
+              quota ||
+              ("errors" in message &&
+                message.errors.some((error) =>
+                  NativeQuotaError.matches(undefined, error),
+                ))
+            ) {
+              quota = true;
+              continue;
+            }
             throw new Error(
               "Claude browser check failed; native session preserved",
             );
+          }
           return stageResultSchema.parse(
             message.structured_output ?? JSON.parse(message.result),
           );
         }
       }
+      if (quota) throw new NativeQuotaError();
       throw new Error("Claude ended without a browser result");
     } finally {
       clearTimeout(timer);
@@ -134,6 +153,7 @@ export class ClaudeEngine implements Engine {
     const directories = input.directories ?? [input.cwd];
     const session = input.sessionId ?? randomUUID();
     input.onSession(session);
+    const options = claudeOptionsSchema.parse(input.options ?? {});
     const args = [
       "-p",
       "--output-format",
@@ -152,6 +172,8 @@ export class ClaudeEngine implements Engine {
       input.sessionId ? "--resume" : "--session-id",
       session,
     ];
+    if (options.model) args.push("--model", options.model);
+    if (options.effort) args.push("--effort", options.effort);
     for (const directory of [
       ...directories,
       ...(input.readDirectories ?? []),
@@ -193,9 +215,24 @@ export class ClaudeEngine implements Engine {
       engineEnvironment(),
       (line) => input.onActivity?.("stderr: " + line),
     );
+    let raw: any;
+    try {
+      raw = JSON.parse(result.stdout);
+    } catch {
+      throw new Error(
+        "Claude returned no valid result; native session preserved for recovery",
+      );
+    }
+    if (
+      raw.is_error &&
+      (NativeQuotaError.matches(raw.error, raw.result) ||
+        raw.errors?.some((message: unknown) =>
+          NativeQuotaError.matches(undefined, message),
+        ))
+    )
+      throw new NativeQuotaError();
     if (result.code !== 0)
       throw new Error("Claude failed; native session preserved for recovery");
-    const raw = JSON.parse(result.stdout);
     input.onActivity?.(
       "Native result: " +
         JSON.stringify(raw.structured_output ?? raw.result ?? raw.is_error),

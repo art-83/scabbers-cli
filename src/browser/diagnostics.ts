@@ -56,6 +56,7 @@ export async function checkNativeBrowser(
   const timer = setTimeout(() => controller.abort(), 120000);
   try {
     const result = await adapter.execute({
+      options: config.engines[config.engine],
       runId: `browser-check:${config.engine}:${origin}`,
       stage: "browser-read-only-check",
       cwd: process.cwd(),

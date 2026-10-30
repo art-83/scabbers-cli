@@ -1,4 +1,6 @@
+import type { EngineOptions } from "./engine-options.js";
 export type StageInput = {
+  options?: EngineOptions;
   runId: string;
   stage: string;
   prompt: string;

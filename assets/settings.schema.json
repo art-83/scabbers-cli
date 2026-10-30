@@ -46,6 +46,73 @@
       "type": "string",
       "enum": ["claude", "codex"]
     },
+    "engines": {
+      "type": "object",
+      "properties": {
+        "codex": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+            },
+            "effort": {
+              "type": "string",
+              "maxLength": 30,
+              "pattern": "^[a-z][a-z0-9_-]*$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "claude": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high", "xhigh", "max"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["codex", "claude"],
+      "additionalProperties": false
+    },
+    "fallback": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "order": {
+          "default": ["codex", "claude"],
+          "minItems": 1,
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["codex", "claude"]
+          }
+        },
+        "cooldownSeconds": {
+          "default": 300,
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 86400
+        }
+      },
+      "required": ["enabled", "order", "cooldownSeconds"],
+      "additionalProperties": false
+    },
     "workers": {
       "default": 3,
       "type": "integer",
@@ -354,6 +421,8 @@
     "browser",
     "version",
     "engine",
+    "engines",
+    "fallback",
     "workers",
     "remoteEnabled",
     "credentialKeys",
