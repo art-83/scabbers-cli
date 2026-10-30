@@ -23,6 +23,10 @@ it("proves an actual failing regression before the fix, then green tests, one in
   );
   git(["add", "."]);
   git(["commit", "-m", "fixture bug"]);
+  const remote = join(directory, "remote.git");
+  git(["init", "--bare", remote]);
+  git(["remote", "add", "origin", remote]);
+  git(["push", "origin", "master"]);
   const store = new Store(join(directory, "state.db"));
   const run = store.create("development", "SNOLA-FIXTURE", "codex", "profile", {
     scopePending: true,
@@ -64,7 +68,17 @@ it("proves an actual failing regression before the fix, then green tests, one in
     execute: vi.fn(
       async (current, _instruction, _skill, mode, cwd, _signal, fresh) => {
         const data: Record<string, unknown> = {};
-        if (current.state === "investigating") Object.assign(data, form);
+        if (current.state === "investigating") {
+          expect(cwd).not.toBe(repo);
+          expect(
+            execFileSync("git", ["branch", "--show-current"], {
+              cwd,
+              encoding: "utf8",
+            }).trim(),
+          ).toBe("");
+          expect(current.data.analysisRevisions).toHaveProperty("arcca-pdv");
+          Object.assign(data, form);
+        }
         if (current.state === "regression" && mode === "edit")
           writeFileSync(
             join(cwd, "bug.test.ts"),

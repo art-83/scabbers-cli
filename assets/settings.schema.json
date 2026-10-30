@@ -228,6 +228,11 @@
             "type": "string",
             "const": "staging"
           },
+          "baseBranch": {
+            "default": "master",
+            "type": "string",
+            "minLength": 1
+          },
           "gitlabProjectId": {
             "type": "string"
           },
@@ -239,7 +244,14 @@
             }
           }
         },
-        "required": ["name", "path", "stagingUrl", "stagingRef", "testCommand"],
+        "required": [
+          "name",
+          "path",
+          "stagingUrl",
+          "stagingRef",
+          "baseBranch",
+          "testCommand"
+        ],
         "additionalProperties": false
       }
     },

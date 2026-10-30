@@ -58,6 +58,7 @@ export const configSchema = z.strictObject({
         path: z.string(),
         stagingUrl: z.url(),
         stagingRef: z.literal("staging").default("staging"),
+        baseBranch: z.string().trim().min(1).default("master"),
         gitlabProjectId: z.string().optional(),
         testCommand: z.array(z.string()).min(1),
       }),

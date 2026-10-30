@@ -37,7 +37,7 @@ A workflow question includes a stable decision code. Reply in its **private run 
 
 ## Repository and Jira setup
 
-Every configured repository needs an absolute source path, actual staging endpoint and trusted test argv. Commands run without a shell in a task worktree. Configure dependencies/test runtime in your repository environment; setup failures cannot count as the failing defect regression. Multi-repository deliveries require a `gitlabProjectId` for each repository.
+Every configured repository needs an absolute source path, actual staging endpoint and trusted test argv. Set `baseBranch` to its remote base branch (`master` by default, or explicitly `main`). Before technical investigation the controller fetches that branch from `origin`, verifies the commit and creates a detached analysis worktree. After eligibility it creates the correction branch at the same commit. A failed fetch blocks preparation; it never falls back to stale local HEAD. Existing checkpoints keep their worktrees and pinned revision, without pull, reset or overwriting the user checkout. Commands run without a shell in a task worktree. Configure dependencies/test runtime in your repository environment; setup failures cannot count as the failing defect regression. Multi-repository deliveries require a `gitlabProjectId` for each repository.
 
 `skillPaths` names the installed catalog `SKILL.md` files required by workflow stages. Marketplace installation is optional, but the capabilities named by the chosen workflow must be present. Missing skills block with their exact names; the controller does not invent replacement evidence.
 

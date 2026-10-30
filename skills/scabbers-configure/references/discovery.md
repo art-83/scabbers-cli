@@ -46,3 +46,5 @@ Discovery input shape:
 The report can contain non-secret identities and local paths, but must not contain raw API responses, phone numbers, token values or unrelated personal profile data. Record enough source attribution to explain a value, not entire retrieved messages. Default provenance is separate from verified evidence.
 
 `browser.executable` and `browser.profileDirectory` are optional selected local settings. `browser.testOrigin` selects a read-only diagnostic target; it does not approve access. Native engine/browser permissions govern origins. Never migrate local credential file contents; retain credential references only within the same selected Scabbers state instance.
+
+Repository `baseBranch` is the remote source for fresh technical investigation (`master` by default). Preserve an explicit choice and use `main` only when verified or selected. Scabbers fetches from `origin` without changing the user checkout, pins an analysis worktree and creates the correction branch there after eligibility. Do not present stagingRef or a local checked-out branch as the base-branch setting.

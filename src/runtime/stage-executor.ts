@@ -104,14 +104,14 @@ export class StageExecutor implements StageRunner {
       browserAuthorized: run.data.browserAuthorized === true,
       ...(mode === "browser" ? { allowedOrigins } : {}),
       directories:
-        mode === "edit"
-          ? Object.values(run.data.workspaces as Record<string, string>)
-          : [
-              ...this.config.repositories.map((r) => r.path),
-              ...Object.values(
-                (run.data.workspaces ?? {}) as Record<string, string>,
-              ),
-            ],
+        run.data.workspaces || run.data.analysisWorkspaces
+          ? Object.values(
+              (run.data.workspaces ?? run.data.analysisWorkspaces) as Record<
+                string,
+                string
+              >,
+            )
+          : this.config.repositories.map((r) => r.path),
       readDirectories: [dirname(path)],
       signal,
       onProcess: (pid) => {

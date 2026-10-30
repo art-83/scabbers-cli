@@ -43,21 +43,24 @@
       "path": "/replace/with/arccanet-backend",
       "stagingUrl": "https://backend.staging.example.invalid",
       "gitlabProjectId": "replace-with-project-id",
-      "testCommand": ["npm", "test"]
+      "testCommand": ["npm", "test"],
+      "baseBranch": "master"
     },
     {
       "name": "arccanet-frontend",
       "path": "/replace/with/arccanet-frontend",
       "stagingUrl": "https://frontend.staging.example.invalid",
       "gitlabProjectId": "replace-with-project-id",
-      "testCommand": ["npm", "test"]
+      "testCommand": ["npm", "test"],
+      "baseBranch": "master"
     },
     {
       "name": "arcca-pdv",
       "path": "/replace/with/arcca-pdv",
       "stagingUrl": "https://pdv.staging.example.invalid",
       "gitlabProjectId": "replace-with-project-id",
-      "testCommand": ["npm", "test"]
+      "testCommand": ["npm", "test"],
+      "baseBranch": "master"
     }
   ],
   "skillPaths": {

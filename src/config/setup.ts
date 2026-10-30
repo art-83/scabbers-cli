@@ -134,6 +134,9 @@ export async function setup(store: Store, directory: string): Promise<void> {
           const stagingUrl = await text(
             `Actual staging endpoint for ${name}: `,
           );
+          const baseBranch =
+            (await text(`Remote base branch for ${name} [master]: `)).trim() ||
+            "master";
           const argv = await text(
             `Verified test command argv as JSON for ${name} (for example ["npm","test"]): `,
           );
@@ -146,6 +149,7 @@ export async function setup(store: Store, directory: string): Promise<void> {
             path: root,
             stagingUrl,
             stagingRef: "staging",
+            baseBranch,
             testCommand: JSON.parse(argv),
             ...(projectId ? { gitlabProjectId: projectId } : {}),
           });

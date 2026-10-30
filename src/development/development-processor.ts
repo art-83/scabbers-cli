@@ -89,6 +89,28 @@ export class DevelopmentProcessor {
     if (!cwd)
       throw new Error("Configure NOLA web repositories and staging endpoints");
     if (run.state === "investigating") {
+      if (!run.data.analysisWorkspaces) {
+        // Preserve older in-flight checkpoints instead of replacing their code base.
+        if (run.data.workspaces)
+          run.data.analysisWorkspaces = run.data.workspaces;
+        else {
+          const paths = await this.workspace.prepareAnalysis(
+            run.id,
+            this.config.repositories,
+            signal,
+          );
+          run.data.analysisRevisions = await this.workspace.revisions(
+            paths,
+            signal,
+          );
+          run.data.analysisWorkspaces = paths;
+        }
+        this.store.save(run);
+      }
+      const analysisPaths = run.data.analysisWorkspaces as Record<
+        string,
+        string
+      >;
       if (this.jira) {
         const issue = await this.jira.evidence(
           String(run.data.issueKey ?? run.source),
@@ -103,7 +125,7 @@ export class DevelopmentProcessor {
           ". Identify ALL products involved, including mixed dependencies. Totem or SmartPOS must be handed off. State code-traced facts separately from hypotheses. Propose repository-prefixed file paths and a real configured regression test. Do not modify code.",
         "nola-engineering:solution-analysis",
         "read",
-        cwd,
+        Object.values(analysisPaths)[0]!,
         signal,
       );
       if (result.status !== "passed") {
@@ -212,10 +234,17 @@ export class DevelopmentProcessor {
       );
       if (repos.length !== form.repositories.length)
         throw new Error("Missing repository configuration");
+      const analysis = run.data.analysisWorkspaces as
+        Record<string, string> | undefined;
+      if (analysis && repos.some((repo) => !analysis[repo.name]))
+        throw new Error(
+          "Selected repository was not included in the pinned investigation; review scope before proceeding",
+        );
       run.data.workspaces = await this.workspace.prepare(
         run.id,
         repos,
         form.products,
+        signal,
       );
       this.workspace.validatePlan(
         run.data.workspaces as Record<string, string>,

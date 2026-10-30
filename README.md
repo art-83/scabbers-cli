@@ -157,7 +157,7 @@ A `CANCEL` event is also available from active states. Implementation: [support 
 
 ## Development: eligibility, TDD and staging
 
-**JEV runs inside Development, after the handoff and technical investigation, before worktree creation or code edits.** It evaluates the versioned eligibility form using both option orders. A non-eligible result is handed off; missing JEV access blocks the checkpoint. Being assigned a Bug is not development authorization.
+**JEV runs inside Development, after the handoff and technical investigation, before creation of the correction branch or code edits.** It evaluates the versioned eligibility form using both option orders. A non-eligible result is handed off; missing JEV access blocks the checkpoint. Being assigned a Bug is not development authorization.
 
 ```mermaid
 stateDiagram-v2
@@ -187,14 +187,14 @@ stateDiagram-v2
 
 The controller advances these stages only with the required evidence:
 
-1. **Investigation and eligibility:** read the Bug and actual code, establish repositories/products and a bounded file plan, then consult JEV. Unresolved decisions and restricted domains require human answers. Totem, SmartPOS/noah-smart-pos and mixed flows involving them are excluded from autonomous development.
+1. **Investigation and eligibility:** fetch each configured repository’s `origin` base branch and pin a detached analysis worktree before reading the Bug and actual code, establish repositories/products and a bounded file plan, then consult JEV. Unresolved decisions and restricted domains require human answers. Totem, SmartPOS/noah-smart-pos and mixed flows involving them are excluded from autonomous development.
 2. **Isolated workspace and TDD:** prepare a task branch/worktree, verify a passing baseline, add only the regression test and demonstrate a failure caused by the defect. Implementation is forbidden without that evidence. Apply the bounded fix and require passing configured tests.
 3. **Review and final tests:** run one independent review in a fresh native session, address its findings and rerun final tests. Preserve the review evidence instead of starting repeated independent reviews.
 4. **Publication approval:** present a concrete diff and digest for an authenticated human decision. Approved publication pushes the task branch, serializes integration into `staging` and creates a draft MR targeting `master`. It does not merge `master` or deploy production.
 5. **Staging and browser E2E:** verify the expected revision, successful CI/deployment and configured staging endpoint, then exercise observable acceptance criteria using native browser tools. A missing extension, login, permission or deployment remains a blocker.
 6. **Human validation:** after automatic E2E passes, obtain explicit human confirmation. Then remove the MR's draft status and advance Jira to **Ready for Code Review**. A passing browser check alone does not finish delivery.
 
-The current workspace implementation creates the task branch from the repository's **local HEAD**; it does not guarantee an updated `master` base. Review that base before relying on it for a real delivery. A failed E2E or rejected validation enters `waiting`; answering currently returns the machine to investigation. A checkpoint error instead remains at its saved stage until retried. `CANCEL` is available from active states.
+Before investigation, the controller fetches `origin/<baseBranch>` and pins its commit in a detached worktree. Each repository can set `baseBranch` (default `master`; set `main` where appropriate). The correction branch is created at that same revision only after JEV eligibility. The source checkout and local edits stay unchanged; a failed fetch blocks new preparation instead of using a cached ref. Retries reuse the pinned worktree without fetching a different base. Older in-flight worktrees remain intact. A failed E2E or rejected validation enters `waiting`; answering currently returns the machine to investigation. A checkpoint error instead remains at its saved stage until retried. `CANCEL` is available from active states.
 
 Implementation: [development processor](src/development/development-processor.ts), [workspace](src/development/workspace.ts), [publication](src/development/publication.ts), [evidence guards](src/workflows/evidence-guards.ts).
 
@@ -247,6 +247,7 @@ npm pack --dry-run
 
 ## Further references
 
+- [Tasks and planned work](tasks/README.md) — new tasks start in **To do**; use **In progress** and **Done** as work advances.
 - [Configuration and credentials](docs/configuration.md)
 - [Architecture](docs/architecture.md)
 - [Verification evidence and remaining gaps](docs/verification.md)
