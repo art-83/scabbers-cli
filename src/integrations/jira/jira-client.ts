@@ -7,9 +7,13 @@ import type { RoutingPlan } from "../types/routing-plan.js";
 import type { IssueTracker } from "../abstractions/interface/issue-tracker.js";
 import type { Config } from "../../config/types/config.js";
 import { HttpClient } from "../http-client.js";
+import { JiraImages } from "./jira-images.js";
 import { Effects } from "../../runtime/effects.js";
 import type { Store } from "../../storage/store.js";
 export class JiraClient implements IssueTracker {
+  imageEvidence(directory: string): JiraImages {
+    return new JiraImages(this.http, directory);
+  }
   private readonly http: HttpClient;
   private readonly effects: Effects;
   constructor(

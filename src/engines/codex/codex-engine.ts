@@ -66,6 +66,7 @@ export class CodexEngine implements Engine {
           JSON.stringify(input.directories),
       );
     if (session) args.push("resume", session);
+    for (const path of input.imagePaths ?? []) args.push("--image", path);
     args.push("-");
     const result = await this.processRunner.run(
       "codex",

@@ -237,6 +237,12 @@ describe("Complete resumable Jira families", () => {
     ];
     jira.issues["SNOLA-1"]!.fields.status!.name = "Docs & Tests";
     expect((await hierarchy.read("SNOLA-1")).digest).toBe(original.digest);
+    jira.issues["SNOLA-1"]!.fields.attachment = [
+      { id: "1", mimeType: "image/png", size: 100, filename: "RFC.png" },
+    ];
+    expect((await hierarchy.read("SNOLA-1")).digest).not.toBe(original.digest);
+    delete jira.issues["SNOLA-1"]!.fields.attachment;
+    expect((await hierarchy.read("SNOLA-1")).digest).toBe(original.digest);
     jira.issues["SNOLA-1"]!.fields.description = "Changed requirement";
     expect((await hierarchy.read("SNOLA-1")).digest).not.toBe(original.digest);
   });

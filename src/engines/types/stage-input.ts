@@ -4,6 +4,7 @@ export type StageInput = {
   runId: string;
   stage: string;
   prompt: string;
+  imagePaths?: string[];
   cwd: string;
   sessionId: string | null;
   mode: "read" | "edit" | "browser";

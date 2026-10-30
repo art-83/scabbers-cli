@@ -213,7 +213,11 @@ export class ClaudeEngine implements Engine {
       "claude",
       args,
       input.cwd,
-      input.prompt,
+      input.prompt +
+        (input.imagePaths?.length
+          ? "\nUse the Read tool to inspect EVERY supplied local Jira image as visual evidence before concluding. Report unreadable images as missing evidence; do not infer contents from filenames. Image paths: " +
+            JSON.stringify(input.imagePaths)
+          : ""),
       () => {},
       input.signal,
       600_000,

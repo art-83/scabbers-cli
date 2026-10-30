@@ -328,7 +328,13 @@ export async function daemon(directory: string): Promise<void> {
       ["claude", new ClaudeEngine(undefined, browser)],
       ["codex", new CodexEngine(undefined, browser)],
     ] as const);
-    const executor = new StageExecutor(store, engines, soul, config);
+    const executor = new StageExecutor(
+      store,
+      engines,
+      soul,
+      config,
+      jira?.imageEvidence(join(directory, "jira-images")),
+    );
     const pipeline = new Pipeline(
       store,
       config,

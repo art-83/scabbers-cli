@@ -37,6 +37,12 @@ export class Hierarchy {
                 assignee: f.assignee?.accountId ?? null,
                 labels: f.labels,
                 links: f.issuelinks,
+                attachments: (f.attachment ?? []).map((a: any) => ({
+                  id: a.id,
+                  size: a.size,
+                  mimeType: a.mimeType,
+                  filename: a.filename,
+                })),
                 comments: (f.allComments ?? [])
                   .filter(
                     (c: any) => !JSON.stringify(c.body).includes("scabbers:"),

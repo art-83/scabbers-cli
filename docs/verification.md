@@ -85,3 +85,9 @@ Panel-lifecycle tests start isolated IPC-owned runtimes and verify normal contro
 The shutdown registry includes both process-group children launched by ProcessRunner and non-detached native children launched by the Claude SDK. A separate fixture verifies the latter are stopped as well.
 
 Assignee-scope regression tests verify mandatory owner JQL, missing/invalid identity rejection, backend result filtering, mixed-assignee family context with owner-only implementation, reassignment blocking, owner-specific checkpoint fingerprints and assignment checks at the Jira write boundary. Existing graph, workflow, lifecycle and engine-fallback checks continue to run.
+
+### Jira image evidence (October 30, 2026)
+
+The read-only attachment path downloaded both PNG attachments from the RFC epic through Jira with redirects disabled. Separate native Codex and Claude adapter invocations inspected both images and described the visible dropdown selection and multi-select filter with Reset/Filter controls. This validates visual input through both adapters, not a full feature delivery. No Jira/Slack writes, browser navigation or runtime startup were performed by this check.
+
+Unit coverage includes private content-addressed storage, metadata provenance, corrupted-cache recovery, origin and redirect restrictions, bounded streaming, unsupported/invalid images, cancellation, image limits, Codex new/resumed turns, Claude Read instructions and the controller's epic-plus-current-child evidence handoff. Family fingerprints include attachment metadata so evidence changes invalidate an existing scope snapshot.
