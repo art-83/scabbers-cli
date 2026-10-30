@@ -44,7 +44,7 @@ it("renders both work areas and switches tabs without starting another runtime",
   const slackLine = header.findIndex((line) => line.includes("✓ Slack"));
   expect(header[slackLine + 1]).toContain("✗ Jira");
   expect(header[slackLine + 2]).toContain("… GitLab");
-  expect(header.at(-1)).toContain("q Detach");
+  expect(header.at(-1)).toContain("q Exit");
   expect(app.lastFrame()).toContain("Tab Next tab │");
   expect(app.lastFrame()).toContain("←/→ Switch tab │");
   app.stdin.write("\t");
@@ -69,7 +69,7 @@ it("renders both work areas and switches tabs without starting another runtime",
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()!.split("\n")).toHaveLength(22);
   expect(app.lastFrame()).toContain("SCABBERS");
-  expect(app.lastFrame()!.split("\n").at(-1)).toContain("q Detach");
+  expect(app.lastFrame()!.split("\n").at(-1)).toContain("q Exit");
   app.unmount();
 });
 

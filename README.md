@@ -2,7 +2,7 @@
 
 Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage**, **Bug Fix** and **Development** tabs display separate queues; **Config** edits settings and connections directly in the terminal.
 
-A single background runtime keeps working when you close the panel. **Automation is off by default.** Enabling it permits the configured Slack/Jira workflow actions; code publication and final staging validation have separate human approval steps. Installing the CLI does not install an operating-system service.
+A single local runtime is owned by the open CLI panel. Closing the panel or its terminal stops processing; reopening resumes saved checkpoints. **Automation is off by default.** Enabling it permits the configured Slack/Jira workflow actions; code publication and final staging validation have separate human approval steps. Installing the CLI does not install an operating-system service.
 
 ## Install and configure
 
@@ -65,7 +65,7 @@ Model and effort are configurable per engine in `engines.codex` and `engines.cla
 | `Esc`                  | Leave a menu without accepting its action                  |
 | `Page Up`, `Page Down` | Scroll overflowing panel content                           |
 | `e`                    | Review automation activation                               |
-| `q`                    | Detach the panel; runtime continues                        |
+| `q`                    | Exit the panel and stop its runtime                        |
 
 ```sh
 scabbers --doctor
@@ -74,7 +74,7 @@ scabbers --stop
 scabbers --config /absolute/path/to/non-secret-config.json
 ```
 
-A non-interactive launch prints status. The footer keeps shortcuts at the bottom; the header separates **Automation active/off** from integration health. Green means authentication and configured access were verified; red means failed or unconfigured; yellow means checking. Successful health checks do not prove every workflow write permission.
+A non-interactive launch prints status without starting a runtime. The footer keeps shortcuts at the bottom; the header separates **Automation active/off** from integration health. Green means authentication and configured access were verified; red means failed or unconfigured; yellow means checking. Successful health checks do not prove every workflow write permission.
 
 **Bug Triage** reads support reports; **Bug Fix** receives normal bugs from that workflow. **Development** polls Jira for feature families and standalone Stories/Tasks. Existing `support` and `development` run kinds remain compatible; the new `feature` kind reuses the same delivery XState machine with feature-specific analysis and JEV criteria.
 
@@ -113,7 +113,7 @@ flowchart TD
     Development <--> DB
 ```
 
-The panel observes and controls the runtime; it does not own the job lifecycle. Closing and reopening it does not create another runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. All three queues share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
+The panel owns a single child runtime through a private IPC connection. Closing the panel (including abrupt owner death) shuts down the runtime and managed subprocesses. Workflow state and native sessions remain in SQLite for the next launch. A second panel cannot take ownership of an existing runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. All three queues share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
 
 XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Board/family discovery and per-member feature analysis checkpoints are saved too. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Bug Fix starts its own native conversation; its independent review uses a separate clean session.
 
@@ -215,7 +215,7 @@ The controller advances these stages only with the required evidence:
 5. **Staging and browser E2E:** verify the expected revision, successful CI/deployment and configured staging endpoint, then exercise observable acceptance criteria using native browser tools. A missing extension, login, permission or deployment remains a blocker.
 6. **Human validation:** after automatic E2E passes, obtain explicit human confirmation. Then remove the MR's draft status and advance Jira to **Ready for Code Review**. A passing browser check alone does not finish delivery.
 
-Before investigation, the controller fetches `origin/<baseBranch>` and pins its commit in a detached worktree. Each repository can set `baseBranch` (default `master`; set `main` where appropriate). The correction branch is created at that same revision only after JEV eligibility. The source checkout and local edits stay unchanged; a failed fetch blocks new preparation instead of using a cached ref. Retries reuse the pinned worktree without fetching a different base. Older in-flight worktrees remain intact. A failed E2E or rejected validation enters `waiting`; answering currently returns the machine to investigation. A checkpoint error instead remains at its saved stage until retried. `CANCEL` is available from active states.
+Before investigation, the controller fetches `origin/<baseBranch>` and pins its commit in a detached worktree. Each repository can set `baseBranch` (default `master`; set `main` where appropriate). The correction branch is created at that same revision only after JEV eligibility. The source checkout and local edits stay unchanged; a failed fetch blocks new preparation instead of using a cached ref. Retries reuse the pinned worktree without fetching a different base. Older in-flight worktrees remain intact. A browser-access retry returns to E2E; an explicit revision decision starts a new bounded fixing attempt with previous evidence preserved and review/publication approvals invalidated. A checkpoint error instead remains at its saved stage until retried. `CANCEL` is available from active states.
 
 Implementation: [development processor](src/development/development-processor.ts), [workspace](src/development/workspace.ts), [publication](src/development/publication.ts), [evidence guards](src/workflows/evidence-guards.ts).
 
@@ -255,7 +255,7 @@ flowchart TD
     Delivery --> Staging[Verified staging, native browser E2E and human validation]
 ```
 
-An Epic owns one implementation branch per affected repository for its entire family. A standalone Story/Task owns its own branches and includes its subtasks. Completed relatives are context, not new work. Unsupported/mixed active bug families, opt-outs, inaccessible members, cycles and concurrent work are excluded or blocked explicitly. Search can only reveal cards visible to the Jira account; explicit inaccessible references block that group, and hidden cards cannot be independently inferred.
+An Epic owns one implementation branch per affected repository for its entire family. Its product status (such as Ready for Dev or Delivery) is context: it is not treated as active engineering work or transitioned by Scabbers. Engineering child cards form the change scope. A standalone Story/Task owns its own branches and includes its subtasks. Completed relatives are context, not new work. Unsupported/mixed active bug families, opt-outs, inaccessible members, cycles and concurrent work are excluded or blocked explicitly. Search can only reveal cards visible to the Jira account; explicit inaccessible references block that group, and hidden cards cannot be independently inferred.
 
 SQLite persists discovery pages, family membership, semantic requirement fingerprints, analysis results and delivery scope. Sibling candidates deduplicate into one family. Member locks prevent overlapping Bug Fix/Development stages. Requirements and membership are rechecked at delivery boundaries and after approval waits; changed scope blocks the pinned attempt. A later changed family can create a new delivery after the previous run is closed.
 
@@ -266,7 +266,7 @@ scabbers --preview-development
 scabbers --preview-development --refresh
 ```
 
-These commands do not start the runtime or modify Jira. Repeat a partial preview to continue; `--refresh` starts a fresh one. The Development tab shows discovery progress and separate feature runs. Config also exposes the board, column, polling interval and optional workflow mappings. A `development.transitions` key has the format `PROJECT/Issue Type`, with verified `claim`, `documented` and `validated` target names. Mapped targets are checked against actual Jira transitions; unmapped types receive progress comments and retain their status. Completed/context cards receive no delivery updates.
+These commands do not start the runtime or modify Jira. Repeat a partial preview to continue; `--refresh` starts a fresh one. The Development tab shows discovery progress and separate feature runs. Config also exposes the board, column, polling interval and optional workflow mappings. A `development.transitions` key has the format `PROJECT/Issue Type`, with verified `claim`, `documented` and `validated` target names. Mapped targets are checked against actual Jira transitions; unmapped types receive progress comments and retain their status. Engineering transitions are capped at To Do/Open, Analysis, Solution Analysis, In Progress, Docs & Tests and Ready for Code Review. Ready for QA, QA, Done and production transitions are outside this delivery scope. Epic product status is always preserved, even if a mapping exists. Completed/context cards receive no delivery updates.
 
 Feature JEV uses the separate `jev-feature-family-1.0.0` rubric, both alternative orders and a provisional `0.89` threshold. Product answers refine the full plan before reevaluation. File budgets, provider/domain restrictions, failing acceptance checks, one independent review per attempt, concrete publication approval and human staging validation remain mandatory. No main/master merge or production deployment is automated. Browser-access retries return to E2E; a rejected delivery starts a new explicit revision attempt, preserving prior evidence and invalidating its review/publication approvals.
 

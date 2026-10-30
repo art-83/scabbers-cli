@@ -265,6 +265,12 @@ export async function configureSetting(
           await fields("Development intake settings", config.development, [
             { key: "boardId", label: "Jira board ID", kind: "number" },
             { key: "column", label: "Candidate column" },
+            {
+              key: "workflowStatuses",
+              label:
+                "Engineering workflow statuses (JSON array; maximum Ready for Code Review)",
+              kind: "json",
+            },
             { key: "pollSeconds", label: "Polling seconds", kind: "number" },
             {
               key: "transitions",

@@ -1,3 +1,4 @@
+import { PanelRuntime } from "../src/runtime/panel-runtime.js";
 import { it, expect } from "vitest";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -21,6 +22,11 @@ it("reconnects to one daemon and recovers persisted workflow/session after a cra
     run.sessionId = "preserved-native-session";
     store.save(run);
     store.close();
+    const firstPanel = new PanelRuntime(directory, cli, {
+      ...process.env,
+      SCABBERS_HOME: directory,
+    });
+    await firstPanel.start();
     const first = JSON.parse((await runCli()).stdout);
     pid = first.pid;
     expect(first.remoteEnabled).toBe(false);
@@ -51,12 +57,17 @@ it("reconnects to one daemon and recovers persisted workflow/session after a cra
     await waitFor((status) => status.workers === 2 && !status.settingsError);
     process.kill(first.pid, "SIGKILL");
     await new Promise((resolve) => setTimeout(resolve, 100));
+    const recoveredPanel = new PanelRuntime(directory, cli, {
+      ...process.env,
+      SCABBERS_HOME: directory,
+    });
+    await recoveredPanel.start();
     const recovered = JSON.parse((await runCli()).stdout);
     pid = recovered.pid;
     expect(recovered.pid).not.toBe(first.pid);
     expect(recovered.runs[0].sessionId).toBe("preserved-native-session");
     expect(recovered.runs[0].state).toBe("queued");
-    await request(directory, { action: "stop" });
+    await recoveredPanel.stop();
     await new Promise((resolve) => setTimeout(resolve, 300));
     pid = undefined;
   } finally {

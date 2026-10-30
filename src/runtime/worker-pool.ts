@@ -2,6 +2,7 @@ import type { Family } from "../features/types/family.js";
 import type { Store } from "../storage/store.js";
 import type { Run } from "../workflows/types/run.js";
 export class WorkerPool {
+  private stopping = false;
   private readonly active = new Map<string, AbortController>();
   constructor(
     private readonly store: Store,
@@ -13,6 +14,7 @@ export class WorkerPool {
     return this.active.size;
   }
   async tick(): Promise<void> {
+    if (this.stopping) return;
     for (const run of this.store.list()) {
       if (this.active.size >= this.limit) break;
       const blocker = run.data.blockerDecision
@@ -69,6 +71,13 @@ export class WorkerPool {
       this.store.log(run.id, `${run.kind} · ${run.state}: worker started`);
       void this.step(run, controller.signal)
         .catch(async (error) => {
+          if (this.stopping && controller.signal.aborted) {
+            this.store.log(
+              run.id,
+              "CLI closed; active stage suspended at its saved checkpoint",
+            );
+            return;
+          }
           const current = this.store.get(run.id);
           if (current.state !== "cancelled") {
             current.error =
@@ -129,6 +138,7 @@ export class WorkerPool {
       .run(run.paused, id);
   }
   shutdown(): void {
+    this.stopping = true;
     for (const controller of this.active.values()) controller.abort();
   }
 }

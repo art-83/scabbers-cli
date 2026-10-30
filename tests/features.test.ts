@@ -105,7 +105,8 @@ function form(family: Family) {
       approach: "Inspect and extend query",
       dependencies: [],
       disposition:
-        i.fields.status?.statusCategory?.key === "done"
+        i.fields.status?.statusCategory?.key === "done" ||
+        i.fields.issuetype.name === "Epic"
           ? "context"
           : "implement",
     })),

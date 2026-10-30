@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { PanelRuntime } from "./runtime/panel-runtime.js";
 import { redactLog } from "./logging/log-redactor.js";
 import { PreviewService } from "./features/preview-service.js";
 import { TextLog } from "./logging/text-log.js";
@@ -6,7 +7,7 @@ import { soulFile } from "./profile/soul-file.js";
 import { Soul } from "./profile/soul.js";
 import { reviewSoul } from "./profile/review-soul.js";
 import { render } from "ink";
-import { spawn, execFile } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -20,7 +21,7 @@ import { setup } from "./config/setup.js";
 import { daemon } from "./runtime/daemon.js";
 import { request } from "./runtime/client.js";
 import { App } from "./tui/app.js";
-const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Development / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --preview-development  Preview Jira families (read-only, resumable)\nscabbers --logs           Show recent text logs without starting the runtime\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
+const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Development / Config panel; exit with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --preview-development  Preview Jira families (read-only, resumable)\nscabbers --logs           Show recent text logs without starting the runtime\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
 async function main(): Promise<void> {
   if (
     process.stdin.isTTY &&
@@ -208,43 +209,38 @@ async function main(): Promise<void> {
   )
     await setup(store, directory);
   store.close();
-  try {
-    await request(directory, { action: "status" });
-  } catch {
-    try {
-      new TextLog(join(directory, "logs")).write("Starting detached runtime");
-    } catch {
-      console.warn(
-        "Text logs unavailable; check Config for log storage diagnostics.",
-      );
-    }
-    const child = spawn(
-      process.execPath,
-      [...process.execArgv, fileURLToPath(import.meta.url), "--daemon"],
-      { detached: true, stdio: "ignore", env: process.env },
-    );
-    child.unref();
-    let connected = false;
-    for (let attempt = 0; attempt < 40; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      try {
-        await request(directory, { action: "status" });
-        connected = true;
-        break;
-      } catch {}
-    }
-    if (!connected)
-      throw new Error(
-        "Runtime did not start. Inspect " + join(directory, "logs"),
-      );
-  }
   if (!process.stdin.isTTY) {
-    console.log(
-      JSON.stringify(await request(directory, { action: "status" }), null, 2),
-    );
+    try {
+      console.log(
+        JSON.stringify(await request(directory, { action: "status" }), null, 2),
+      );
+    } catch {
+      console.log(
+        JSON.stringify({
+          running: false,
+          message:
+            "Open scabbers in an interactive terminal to start the panel-owned runtime",
+        }),
+      );
+    }
     return;
   }
-  await render(<App directory={directory} />).waitUntilExit();
+  const runtime = new PanelRuntime(directory, fileURLToPath(import.meta.url));
+  const terminate = () => {
+    void runtime.stop().finally(() => {
+      process.exit(0);
+    });
+  };
+  process.once("SIGTERM", terminate);
+  process.once("SIGHUP", terminate);
+  try {
+    await runtime.start();
+    await render(<App directory={directory} />).waitUntilExit();
+  } finally {
+    process.off("SIGTERM", terminate);
+    process.off("SIGHUP", terminate);
+    await runtime.stop();
+  }
 }
 main().catch((error) => {
   const message =

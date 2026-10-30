@@ -1,3 +1,4 @@
+import { EngineeringWorkflow } from "../../development/engineering-workflow.js";
 import type { JiraSearchPage } from "../types/jira-search-page.js";
 import type { JiraBoard } from "../types/jira-board.js";
 import { ReportResolver } from "./report-resolver.js";
@@ -13,7 +14,7 @@ export class JiraClient implements IssueTracker {
   constructor(
     private readonly config: NonNullable<Config["jira"]>,
     token: string,
-    store: Store,
+    private readonly store: Store,
   ) {
     this.http = new HttpClient(config.baseUrl, {
       Authorization:
@@ -312,6 +313,11 @@ export class JiraClient implements IssueTracker {
     target: string,
     checkpoint: string,
   ): Promise<void> {
+    if (
+      this.store.db.prepare("SELECT kind FROM runs WHERE id=?").get(runId)
+        ?.kind === "feature"
+    )
+      new EngineeringWorkflow().assertTarget(target);
     const marker = `scabbers:${runId}:transition:${checkpoint}`;
     const matches = (issue: any) => issue.fields.status?.name === target;
     await this.effects.once(

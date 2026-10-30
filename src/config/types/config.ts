@@ -1,3 +1,4 @@
+import { EngineeringWorkflow } from "../../development/engineering-workflow.js";
 import { z } from "zod";
 import { browserSchema } from "./browser.js";
 import {
@@ -57,13 +58,17 @@ export const configSchema = z.strictObject({
       boardId: z.number().int().positive().default(28),
       column: z.string().min(1).default("To Do"),
       pollSeconds: z.number().int().min(15).max(3600).default(60),
+      workflowStatuses: z
+        .array(z.enum(EngineeringWorkflow.statuses))
+        .min(1)
+        .default([...EngineeringWorkflow.statuses]),
       transitions: z
         .record(
           z.string(),
           z.strictObject({
-            claim: z.string().min(1),
-            documented: z.string().min(1),
-            validated: z.string().min(1),
+            claim: z.enum(EngineeringWorkflow.statuses),
+            documented: z.enum(EngineeringWorkflow.statuses),
+            validated: z.enum(EngineeringWorkflow.statuses),
           }),
         )
         .default({}),

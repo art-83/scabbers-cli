@@ -282,6 +282,31 @@
           "minimum": 15,
           "maximum": 3600
         },
+        "workflowStatuses": {
+          "default": [
+            "To Do",
+            "Open",
+            "Analysis",
+            "Solution Analysis",
+            "In Progress",
+            "Docs & Tests",
+            "Ready for Code Review"
+          ],
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "To Do",
+              "Open",
+              "Analysis",
+              "Solution Analysis",
+              "In Progress",
+              "Docs & Tests",
+              "Ready for Code Review"
+            ]
+          }
+        },
         "transitions": {
           "default": {},
           "type": "object",
@@ -293,15 +318,39 @@
             "properties": {
               "claim": {
                 "type": "string",
-                "minLength": 1
+                "enum": [
+                  "To Do",
+                  "Open",
+                  "Analysis",
+                  "Solution Analysis",
+                  "In Progress",
+                  "Docs & Tests",
+                  "Ready for Code Review"
+                ]
               },
               "documented": {
                 "type": "string",
-                "minLength": 1
+                "enum": [
+                  "To Do",
+                  "Open",
+                  "Analysis",
+                  "Solution Analysis",
+                  "In Progress",
+                  "Docs & Tests",
+                  "Ready for Code Review"
+                ]
               },
               "validated": {
                 "type": "string",
-                "minLength": 1
+                "enum": [
+                  "To Do",
+                  "Open",
+                  "Analysis",
+                  "Solution Analysis",
+                  "In Progress",
+                  "Docs & Tests",
+                  "Ready for Code Review"
+                ]
               }
             },
             "required": ["claim", "documented", "validated"],
@@ -314,6 +363,7 @@
         "boardId",
         "column",
         "pollSeconds",
+        "workflowStatuses",
         "transitions"
       ],
       "additionalProperties": false

@@ -5,6 +5,9 @@ export const requestSchema = z.discriminatedUnion("action", [
     action: z.enum(["pause", "resume", "cancel"]),
     id: z.string().uuid(),
   }),
-  z.object({ action: z.literal("stop") }),
+  z.object({
+    action: z.literal("stop"),
+    pid: z.number().int().positive().optional(),
+  }),
   z.object({ action: z.literal("activate"), digest: z.string().length(64) }),
 ]);

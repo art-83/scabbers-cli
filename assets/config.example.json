@@ -78,7 +78,16 @@
     "boardId": 28,
     "column": "To Do",
     "pollSeconds": 60,
-    "transitions": {}
+    "transitions": {},
+    "workflowStatuses": [
+      "To Do",
+      "Open",
+      "Analysis",
+      "Solution Analysis",
+      "In Progress",
+      "Docs & Tests",
+      "Ready for Code Review"
+    ]
   },
   "engines": {
     "codex": {},

@@ -1,3 +1,4 @@
+import { EngineeringWorkflow } from "../development/engineering-workflow.js";
 import type { Family } from "./types/family.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { Config } from "../config/types/config.js";
@@ -10,6 +11,10 @@ import { FamilyPolicy } from "./family-policy.js";
 
 import type { IntakePreview } from "./types/intake-preview.js";
 export class FeatureIntake {
+  private stopping = false;
+  stop(): void {
+    this.stopping = true;
+  }
   static configuration(config: Config): string {
     return createHash("sha256")
       .update(
@@ -17,6 +22,8 @@ export class FeatureIntake {
           site: config.jira?.baseUrl,
           board: config.development.boardId,
           column: config.development.column,
+          workflowStatuses: config.development.workflowStatuses,
+          policy: "engineering-epic-context-v2",
         }),
       )
       .digest("hex");
@@ -91,6 +98,7 @@ export class FeatureIntake {
     };
     try {
       for (let step = 0; step < steps; step++) {
+        if (this.stopping) break;
         if (!this.jira.board || !this.jira.searchPage)
           throw new Error("Jira board/search capabilities unavailable");
         if (!state.board) {
@@ -131,10 +139,12 @@ export class FeatureIntake {
             const family = this.hierarchy.complete(state.discovery);
             if (!state.families.some((f) => f.root === family.root))
               state.families.push(family);
-            const blocker = new FamilyPolicy().blocker(family);
+            const blocker = new FamilyPolicy(
+              new EngineeringWorkflow(this.config.development.workflowStatuses),
+            ).blocker(family);
             if (blocker)
               state.excluded.push({ key: family.root, reason: blocker });
-            else if (!previewOnly) this.enqueue(family);
+            else if (!previewOnly && !this.stopping) this.enqueue(family);
             delete state.discovery;
           }
         } else if (state.pending.length) {
@@ -224,8 +234,22 @@ export class FeatureIntake {
         return;
       const root = family.members.find((i) => i.key === family.root)!;
       const scope = family.members
-        .filter((i) => !new JiraCard(i).isDone)
+        .filter(
+          (i) =>
+            !new JiraCard(i).isDone &&
+            !new JiraCard(i).isEpic &&
+            new EngineeringWorkflow(
+              this.config.development.workflowStatuses,
+            ).includes(i.fields.status!.name),
+        )
         .map((i) => i.key);
+      if (!scope.length) {
+        this.store.log(
+          null,
+          `Development family ${family.root} has no engineering work inside the approved workflow`,
+        );
+        return;
+      }
       const run = this.store.create(
         "feature",
         `${family.root}@${family.digest.slice(0, 16)}`,

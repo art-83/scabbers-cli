@@ -1,3 +1,4 @@
+import { EngineeringWorkflow } from "../development/engineering-workflow.js";
 import type { Family } from "./types/family.js";
 import type { FamilyVerification } from "./types/family-verification.js";
 import type { Run } from "../workflows/types/run.js";
@@ -45,10 +46,9 @@ export class FeatureDelivery {
         "Jira requirements or family membership changed. Cancel this pinned delivery and preview the revised family; the running plan cannot be replaced silently",
       );
     }
-    const blocker = new FamilyPolicy().blocker(
-      current,
-      (run.data.claimedMembers ?? []) as string[],
-    );
+    const blocker = new FamilyPolicy(
+      new EngineeringWorkflow(this.config.development.workflowStatuses),
+    ).blocker(current, (run.data.claimedMembers ?? []) as string[]);
     if (blocker) throw new Error(blocker);
     if (
       (run.data.scopeMembers as string[]).some((key) =>
@@ -74,7 +74,10 @@ export class FeatureDelivery {
       config = this.config;
     const family = run.data.family as Family;
     const claimed = new Set((run.data.claimedMembers ?? []) as string[]);
-    for (const key of run.data.scopeMembers as string[]) {
+    for (const key of new Set([
+      family.root,
+      ...(run.data.scopeMembers as string[]),
+    ])) {
       const issue = family.members.find((i) => i.key === key)!;
       if (new JiraCard(issue).isDone) continue;
       const mapping =
@@ -82,7 +85,10 @@ export class FeatureDelivery {
           `${issue.fields.project.key}/${issue.fields.issuetype.name}`
         ];
       // Workflow names differ by project/type. Unmapped cards receive evidence, never a guessed status.
-      if (mapping) {
+      if (mapping && !new JiraCard(issue).isEpic) {
+        new EngineeringWorkflow(
+          config.development.workflowStatuses,
+        ).assertTarget(mapping[checkpoint]);
         await jira.transition(
           run.id,
           key,
@@ -96,7 +102,7 @@ export class FeatureDelivery {
       await jira.comment(
         run.id,
         key,
-        `${text}\nEntrega agrupada: ${family.root}. Escopo desta entrega: ${(run.data.scopeMembers as string[]).join(", ")}.${mapping ? "" : " Status preservado: nenhum mapeamento de workflow configurado para este projeto/tipo."}`,
+        `${text}\nEntrega agrupada: ${family.root}. Escopo desta entrega: ${(run.data.scopeMembers as string[]).join(", ")}.${new JiraCard(issue).isEpic ? " Status de produto preservado; épico usado como contexto da entrega." : mapping ? "" : " Status preservado: nenhum mapeamento de workflow configurado para este projeto/tipo."}`,
         `${checkpoint}:${key}:attempt-${run.data.deliveryAttempt ?? 0}`,
       );
     }

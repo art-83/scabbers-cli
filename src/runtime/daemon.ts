@@ -1,3 +1,4 @@
+import { ProcessRunner } from "./process-runner.js";
 import { IntakePresenter } from "../features/intake-presenter.js";
 import type { IntakePreview } from "../features/types/intake-preview.js";
 import { FeatureIntake } from "../features/intake.js";
@@ -34,6 +35,10 @@ import { Pipeline } from "./pipeline.js";
 import { WorkerPool } from "./worker-pool.js";
 import { requestSchema } from "./protocol.js";
 export async function daemon(directory: string): Promise<void> {
+  if (!process.connected)
+    throw new Error(
+      "The Scabbers runtime requires its open CLI panel (IPC parent connection missing)",
+    );
   const lock = join(directory, "runtime.pid"),
     socketPath = join(directory, "runtime.sock");
   if (existsSync(lock)) {
@@ -47,6 +52,14 @@ export async function daemon(directory: string): Promise<void> {
     unlinkSync(lock);
   }
   writeFileSync(lock, String(process.pid), { flag: "wx", mode: 0o600 });
+  process.once("exit", () => {
+    try {
+      if (Number(readFileSync(lock, "utf8")) === process.pid) {
+        if (existsSync(socketPath)) unlinkSync(socketPath);
+        unlinkSync(lock);
+      }
+    } catch {}
+  });
   if (existsSync(socketPath)) unlinkSync(socketPath);
   const store = new Store(join(directory, "scabbers.db"));
   store.db.exec("DELETE FROM locks");
@@ -70,6 +83,7 @@ export async function daemon(directory: string): Promise<void> {
     retry = 1000,
     ticking = false;
   let stopping = false;
+  let timer: ReturnType<typeof setInterval> | undefined;
   const activationDigest = () =>
     createHash("sha256").update(JSON.stringify(config)).digest("hex");
   const server = createServer((connection) => {
@@ -87,6 +101,7 @@ export async function daemon(directory: string): Promise<void> {
         if (input.action === "status")
           response = {
             pid: process.pid,
+            panelOwned: true,
             settingsFile: configuration.path,
             soulFile: soulFile(config, configuration.path),
             settingsPending,
@@ -195,6 +210,8 @@ export async function daemon(directory: string): Promise<void> {
           nextSweep = 0;
           response = { activated: true };
         } else if (input.action === "stop") {
+          if (input.pid && input.pid !== process.pid)
+            throw new Error("Runtime ownership changed; stop request rejected");
           response = { stopping: true };
           setTimeout(shutdown, 20);
         } else {
@@ -228,19 +245,26 @@ export async function daemon(directory: string): Promise<void> {
     store.log(null, "Runtime shutdown requested; interrupting active stages");
     clearInterval(timer);
     pool?.shutdown();
+    featureIntake?.stop();
+    ProcessRunner.stopAll();
     void socket?.stop();
-    server.close();
+    if (server.listening) server.close();
     try {
       unlinkSync(socketPath);
-      unlinkSync(lock);
     } catch {}
-    setTimeout(() => process.exit(0), 200).unref();
+    setTimeout(() => process.exit(0), 2300).unref();
   };
+  process.once("disconnect", shutdown);
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(socketPath, () => {
+      if (stopping) {
+        server.close();
+        resolve();
+        return;
+      }
       chmodSync(socketPath, 0o600);
       store.log(
         null,
@@ -249,6 +273,7 @@ export async function daemon(directory: string): Promise<void> {
       resolve();
     });
   });
+  if (stopping) return;
   const initialize = async () => {
     if (!config.remoteEnabled) return;
     if (!config.slack.user || !config.schedule)
@@ -428,6 +453,12 @@ export async function daemon(directory: string): Promise<void> {
           retry = Math.min(retry * 2, 300000);
         }
       }
+      if (stopping) {
+        pool?.shutdown();
+        featureIntake?.stop();
+        void socket?.stop();
+        return;
+      }
       if (pool) {
         if (featureIntake && !featureBusy && Date.now() >= nextFeaturePoll) {
           featureBusy = true;
@@ -511,6 +542,6 @@ export async function daemon(directory: string): Promise<void> {
       ticking = false;
     }
   };
-  const timer = setInterval(() => void tick(), 1000);
+  timer = setInterval(() => void tick(), 1000);
   void tick();
 }

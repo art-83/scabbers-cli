@@ -1,7 +1,9 @@
+import { EngineeringWorkflow } from "../development/engineering-workflow.js";
 import { JiraCard } from "./jira-card.js";
 import type { Family } from "./types/family.js";
 import type { FeatureForm } from "./types/feature-form.js";
 export class FamilyPolicy {
+  constructor(private readonly workflow = new EngineeringWorkflow()) {}
   blocker(family: Family, owned: string[] = []): string | undefined {
     for (const issue of [...family.members, ...family.ancestors]) {
       if (
@@ -13,14 +15,25 @@ export class FamilyPolicy {
       if (!new JiraCard(issue).isDone && !new JiraCard(issue).isFeature)
         return `Unsupported or mixed bug/feature family: ${issue.key}`;
       if (
+        !new JiraCard(issue).isEpic &&
+        !new JiraCard(issue).isDone &&
+        !this.workflow.includes(issue.fields.status?.name ?? "")
+      )
+        return `Outside the approved engineering workflow: ${issue.key}`;
+      if (
+        !new JiraCard(issue).isEpic &&
         !new JiraCard(issue).isDone &&
         issue.fields.status?.statusCategory?.key === "indeterminate" &&
         !owned.includes(issue.key)
       )
         return `Active work requires an explicit resolution: ${issue.key}`;
     }
-    if (!family.members.some((i) => !new JiraCard(i).isDone))
-      return "Family is already completed";
+    if (
+      !family.members.some(
+        (i) => !new JiraCard(i).isDone && !new JiraCard(i).isEpic,
+      )
+    )
+      return "Family has no pending engineering work";
     return undefined;
   }
 
@@ -37,7 +50,10 @@ export class FamilyPolicy {
     for (const entry of form.coverage) {
       if (
         entry.disposition !==
-        (scope.includes(entry.key) ? "implement" : "context")
+        (scope.includes(entry.key) &&
+        !new JiraCard(family.members.find((i) => i.key === entry.key)!).isEpic
+          ? "implement"
+          : "context")
       )
         throw new Error("Completed or out-of-scope work cannot be implemented");
       const issue = family.members.find((i) => i.key === entry.key)!;

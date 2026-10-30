@@ -1,5 +1,20 @@
 import { spawn } from "node:child_process";
 export class ProcessRunner {
+  private static readonly active = new Set<number>();
+  static stopAll(): void {
+    for (const pid of this.active) {
+      try {
+        process.kill(-pid, "SIGTERM");
+      } catch {}
+      const timer = setTimeout(() => {
+        if (this.active.has(pid))
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+      }, 2000);
+      timer.unref();
+    }
+  }
   run(
     command: string,
     args: string[],
@@ -28,7 +43,10 @@ export class ProcessRunner {
       let killTimer: NodeJS.Timeout | undefined;
       child.once("spawn", () => {
         try {
-          if (child.pid) onProcess?.(child.pid);
+          if (child.pid) {
+            ProcessRunner.active.add(child.pid);
+            onProcess?.(child.pid);
+          }
         } catch {
           fail("Could not persist native process checkpoint");
         }
@@ -110,6 +128,7 @@ export class ProcessRunner {
         }
       });
       child.on("close", (code) => {
+        if (child.pid) ProcessRunner.active.delete(child.pid);
         if (stderrBuffer) emitErrorLine(stderrBuffer);
         clearTimeout(timer);
         if (killTimer) clearTimeout(killTimer);

@@ -580,7 +580,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               `Enter ${tab === "config" ? "Edit setting" : "Actions"}`,
               "PgUp/PgDn Scroll",
               "e Automation",
-              "q Detach",
+              "q Exit",
             ]
         ).map((hint, i, hints) => (
           <Box key={hint} marginRight={1}>

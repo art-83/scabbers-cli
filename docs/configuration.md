@@ -107,7 +107,7 @@ Workflow mappings are optional and keyed by `PROJECT/Issue Type`. Each configure
 
 Feature families use the current shared delivery machine and a distinct feature eligibility rubric. Native sessions, root/member identities, requirements fingerprints and partial analysis/discovery are preserved. Scope changes block existing attempts rather than changing their approved plan. Very large analyses exceed explicit context/JEV budgets and require an owner scope decision; no descendants are silently dropped.
 
-After installing this runtime change, restart the background process manually to load it. Reopening only the panel does not upgrade an already running runtime.
+The CLI now owns its runtime through IPC. Closing the panel or terminal stops processing and preserves checkpoints. On a one-time upgrade from an older detached runtime, use `scabbers --stop` before opening the new CLI. Normal non-interactive invocations never start a runtime. A second panel cannot adopt or stop another panel’s runtime.
 
 ## Engine models, effort and quota fallback
 
@@ -135,3 +135,9 @@ Engine model/effort profiles are pinned when a workflow first invokes an engine.
 Quota fallback is off by default. When enabled, a recognized native usage/rate-limit failure can continue the same workflow stage with another configured engine after the previous native process exits. SQLite retains the workflow, collected evidence, workspaces, pinned SOUL, per-engine session IDs and a handoff record. A native conversation is not imported between products: the target engine resumes its own saved session or starts with the persisted structured context. Review sessions remain separate from implementation sessions.
 
 Fallback does not authorize new tools, sites or publication. Authentication errors, permission refusals, invalid models, malformed protocols and the Claude per-turn dollar budget do not trigger it. Recovered transient rate limits followed by native success do not trigger it either. The cooldown and saved handoff history prevent immediate switching loops; if both engines are unavailable, the checkpoint stays blocked and the owner is notified through the existing decision flow. No fallback to a paid API/provider or global native settings change is added.
+
+## Engineering scope and product epics
+
+The default `development.workflowStatuses` are To Do, Open (mapped into the board’s To Do column), Analysis, Solution Analysis, In Progress, Docs & Tests and Ready for Code Review. These form a hard maximum for feature transitions. Configuration can restrict this set; it cannot extend it to QA, Done or production. The current shared board’s ANALYSIS column maps to Solution Analysis. New intake continues from To Do; existing unowned implementation work is not silently taken over.
+
+Epics are product context and delivery owners, not engineering task statuses. Ready for Dev or Delivery on an Epic does not itself block eligible To Do children. Product status is preserved; progress comments can summarize the family. Only non-Epic engineering cards enter the change scope or receive mapped engineering transitions.
