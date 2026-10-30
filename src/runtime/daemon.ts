@@ -80,6 +80,7 @@ export async function daemon(directory: string): Promise<void> {
           response = {
             pid: process.pid,
             settingsFile: configuration.path,
+            soulFile: soulFile(config, configuration.path),
             settingsPending,
             settingsError,
             integrations,

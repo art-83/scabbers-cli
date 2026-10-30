@@ -25,7 +25,8 @@
     "pretest": "npm run build",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
-    "prepare": "husky"
+    "prepare": "husky",
+    "secrets:check": "gitleaks git --pre-commit --staged --redact --no-banner"
   },
   "license": "UNLICENSED",
   "dependencies": {

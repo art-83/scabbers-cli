@@ -2,7 +2,7 @@
 
 | Field                                   | Evidence or proposed default                                                                                                        |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `paths`                                 | Ask for Arcca repository/workspace directories if absent; ordered SOUL.md search roots, default `[]`                                |
+| `paths`                                 | User-selected Arcca repository/workspace directories, default `[]`; SOUL lives beside settings.json                                 |
 | `version`                               | Application schema default                                                                                                          |
 | `engine`                                | Explicit user choice, then existing configuration, then schema default                                                              |
 | `workers`                               | Existing choice, otherwise 3                                                                                                        |

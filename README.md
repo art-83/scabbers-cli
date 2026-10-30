@@ -6,7 +6,7 @@ A single background runtime keeps working when you close the panel. **Automation
 
 ## Install and configure
 
-Use Node **24+**, Git and npm. Install and authenticate the Claude Code or Codex CLI separately. Browser validation also requires the selected engine's official browser integration, a connected Chrome/Chromium profile and native site permissions.
+Use Node **24+**, Git, npm and the [Gitleaks CLI](https://github.com/gitleaks/gitleaks#installing). Install and authenticate the Claude Code or Codex CLI separately. Browser validation also requires the selected engine's official browser integration, a connected Chrome/Chromium profile and native site permissions.
 
 ```sh
 npm ci
@@ -49,7 +49,7 @@ This is an illustrative fragment, not a complete configuration:
 
 Days are named `Monday` through `Sunday`; times use 24-hour `HH:mm`. Multiple intervals on the same day and overnight shifts are supported. Valid settings changes apply when active worker stages finish. Invalid settings stop new scheduling and display an error. Imports with `scabbers --config FILE` force automation off.
 
-`paths` identifies the directories searched for `SOUL.md`: Scabbers uses the first existing file, or the first directory when generating a new one. Each new run pins its approved SOUL snapshot. Later file edits do not silently change an existing native conversation.
+Personal `SOUL.md` lives beside the selected settings.json, normally `~/.config/scabbers/SOUL.md`. The runtime and profile skill resolve this location automatically; workspace `paths` no longer choose its destination. An explicit `soulFile` override resolves relative to the settings directory. Config displays the resolved absolute source path. Each new run reads the source and pins its approved snapshot; later edits affect future runs after review, not existing native conversations. Versioned snapshots and evidence remain in the private state directory.
 
 Tokens entered in Config persist in a private local `credentials.json` with permissions `0600`; `settings.json` stores opaque `credentialKeys` references. This is plaintext storage protected by filesystem permissions. Selected local references take precedence over environment credentials; environment and configured AWS SSM references provide fallback when no local reference is selected. Replacing a token reloads the affected connections after active stages finish. Business integration tokens are not passed into engine subprocess environments; engines use their own authentication.
 
@@ -228,11 +228,12 @@ Codex loads the installed first-party browser transport and documented user brow
 Prettier and Vitest are development dependencies. Husky installs the Git hooks during `npm install` / `npm ci`. Before each commit, the hook runs:
 
 ```sh
+npm run secrets:check
 npm run format:check
 npm test
 ```
 
-The formatting check covers all supported files across the working tree, including assets, JSON and documentation. Dependencies, generated build output, coverage and Husky internals are excluded. A formatting or test failure blocks the commit. The hook does not rewrite or stage files, so it preserves partial staging. Apply formatting explicitly, review the changes and stage them:
+The formatting check covers all supported files across the working tree, including assets, JSON and documentation. Dependencies, generated build output, coverage and Husky internals are excluded. Gitleaks scans the staged diff with its default rules and redacts findings. A missing Gitleaks executable, detected secret, formatting error or test failure blocks the commit. The hook does not rewrite or stage files, so it preserves partial staging. Apply formatting explicitly, review the changes and stage them:
 
 ```sh
 npm run format

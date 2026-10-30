@@ -6,7 +6,7 @@ Delivery review date: **2026-10-30**. Worktree: `/home/arthur-nicolas/.codex/wor
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **58 tests in 18 files** and covers:
+The final suite contains **59 tests in 18 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -65,3 +65,5 @@ Native browser validation: an isolated Codex CLI invocation loaded the installed
 The Claude SDK browser path has regression coverage for automatic native Chrome tool approvals, rejection of unrelated tools and native session preservation. It does not persist site grants; non-browser stages retain the previous CLI contract. Live site authorization must still be verified separately from local tests.
 
 A subsequent real Claude check reused its staging tab, captured the home page, opened the side menu and clicked **Comunicados**. A second capture and tab metadata confirmed the internal route `/announcements` and the heading **Comunicados**. Native tool calls, screenshots and structured evidence were saved in private local state, outside the repository. No records were created, modified or deleted. This validates screenshot and internal navigation tool calling; the issue-to-deployment workflow remains untested end to end.
+
+The SOUL source resolver defaults to the selected settings directory, regardless of workspace `paths`, while preserving explicit `soulFile` overrides. An isolated invocation of the actual skill helper verified private source creation beside settings.json, preservation of unrelated workspace profiles and no automatic proposal activation.

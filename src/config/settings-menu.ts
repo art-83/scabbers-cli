@@ -41,7 +41,7 @@ export function settingsItems(
     },
     {
       key: "paths",
-      label: `SOUL directories: ${config.paths.length} configured`,
+      label: `Workspace directories: ${config.paths.length} configured`,
     },
     { key: "slack", label: "Slack · connection and authentication" },
     { key: "jira", label: "Jira · connection and authentication" },
@@ -151,7 +151,7 @@ export async function configureSetting(
       );
     } else if (section === "paths") {
       const value = await prompts.text(
-        `SOUL directories, comma separated [${config.paths.join(", ")}] (Enter keeps current): `,
+        `Workspace directories, comma separated [${config.paths.join(", ")}] (Enter keeps current): `,
       );
       if (value)
         config.paths = value
@@ -350,7 +350,10 @@ export async function configureSetting(
             label: "Selected history files (JSON array)",
             kind: "json",
           },
-          { key: "soulFile", label: "Legacy SOUL source fallback" },
+          {
+            key: "soulFile",
+            label: "SOUL file (relative to settings directory)",
+          },
           { key: "jevKeyParameter", label: "AWS SSM JEV key reference" },
         ],
       );

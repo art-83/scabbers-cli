@@ -337,6 +337,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               <Text bold color="magenta">
                 Configuration
               </Text>
+              {view?.soulFile && <Text dimColor>SOUL: {view.soulFile}</Text>}
               <Text dimColor>
                 ↑/↓ Select a setting · Enter Edit · save or discard in the menu
               </Text>

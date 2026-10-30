@@ -97,10 +97,6 @@ async function main(): Promise<void> {
   new Intl.DateTimeFormat("pt-BR", { timeZone: config.schedule.zone });
   rejectSecrets(config);
   const unresolved = new Set<string>(source.unresolved);
-  if (!config.paths.length)
-    unresolved.add(
-      "paths: ask the user for one or more Arcca repository/workspace directories for SOUL.md",
-    );
   if (!config.slack.user)
     unresolved.add("slack.user: verified Slack member ID required");
   if (!config.jira)
