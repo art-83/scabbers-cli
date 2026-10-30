@@ -7,6 +7,7 @@ import { privateNames } from "../integrations/jira/private-names.js";
 import { browserOrigins } from "../browser/origin-policy.js";
 import { Secrets } from "../integrations/secrets.js";
 import { Publication } from "../development/publication.js";
+import { StagingEndpoint } from "./staging-endpoint.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
@@ -708,16 +709,7 @@ export class DevelopmentProcessor {
       evidence[name] = await client.readiness(publication.revision, "staging");
       if (!repository.stagingUrl)
         throw new Error(`Verified staging URL required for ${name}`);
-      const response = await fetch(repository.stagingUrl, {
-        method: "HEAD",
-        redirect: "error",
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok)
-        throw new Error(
-          "Staging endpoint requires access/login or is temporarily unavailable: " +
-            repository.stagingUrl,
-        );
+      await new StagingEndpoint().verify(repository.stagingUrl);
     }
     return evidence;
   }
