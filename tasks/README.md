@@ -10,6 +10,7 @@ Local backlog for planned Scabbers work. New tasks start in **To do**. This dire
 
 Create one Markdown file per task and link it below. Keep its status and this index consistent. Record validation evidence before marking a task Done.
 
-| Task                                                            | Status |
-| --------------------------------------------------------------- | ------ |
-| [AWS credential diagnostics](001-aws-credential-diagnostics.md) | To do  |
+| Task                                                                                    | Status |
+| --------------------------------------------------------------------------------------- | ------ |
+| [AWS credential diagnostics](001-aws-credential-diagnostics.md)                         | To do  |
+| [Separate Development workflow for tasks and epics](002-development-tasks-and-epics.md) | To do  |

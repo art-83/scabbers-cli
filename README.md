@@ -1,6 +1,6 @@
 # Scabbers CLI
 
-Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Support** and **Development** tabs display separate workflows; **Config** edits settings and connections directly in the terminal.
+Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage** and **Bug Fix** tabs display separate workflows; **Config** edits settings and connections directly in the terminal.
 
 A single background runtime keeps working when you close the panel. **Automation is off by default.** Enabling it permits the configured Slack/Jira workflow actions; code publication and final staging validation have separate human approval steps. Installing the CLI does not install an operating-system service.
 
@@ -57,7 +57,7 @@ Tokens entered in Config persist in a private local `credentials.json` with perm
 
 | Control                | Action                                                     |
 | ---------------------- | ---------------------------------------------------------- |
-| `Tab`, `←`, `→`        | Switch Support, Development and Config                     |
+| `Tab`, `←`, `→`        | Switch Bug Triage, Bug Fix and Config                      |
 | `↑`, `↓`               | Select an execution, setting or menu option                |
 | `Enter`                | Open a setting or execution actions; confirm a menu choice |
 | `Esc`                  | Leave a menu without accepting its action                  |
@@ -74,17 +74,19 @@ scabbers --config /absolute/path/to/non-secret-config.json
 
 A non-interactive launch prints status. The footer keeps shortcuts at the bottom; the header separates **Automation active/off** from integration health. Green means authentication and configured access were verified; red means failed or unconfigured; yellow means checking. Successful health checks do not prove every workflow write permission.
 
+The visible names **Bug Triage** and **Bug Fix** identify the existing support and bug-correction workflows. Persisted run kinds (`support` and `development`), XState machine identities and handoff rules remain unchanged; this is a display rename, not a state migration. A separate **Development** workflow for tasks, stories and decomposed epics is planned in the [backlog](tasks/002-development-tasks-and-epics.md). It is not an active tab and does not reuse the bug-only JEV criteria.
+
 ## Runtime architecture
 
 ```mermaid
 flowchart TD
-    Panel[Ink panel: Support / Development / Config] <-->|Private local socket| Runtime[Single local runtime]
+    Panel[Ink panel: Bug Triage / Bug Fix / Config] <-->|Private local socket| Runtime[Single local runtime]
     Settings[Validated settings.json] --> Runtime
     Credentials[Local credentials / environment / SSM] --> Clients[Slack / Jira / GitLab / JEV clients]
     Runtime --> Clients
     Runtime --> Pool[Shared bounded worker pool]
-    Pool --> Support[Support XState machine]
-    Pool --> Development[Development XState machine]
+    Pool --> Support[Bug Triage XState machine]
+    Pool --> Development[Bug Fix XState machine]
     Support --> Executor[Native stage executor]
     Development --> Executor
     Executor --> Engine[Claude Code or Codex]
@@ -94,9 +96,9 @@ flowchart TD
     Development <--> DB
 ```
 
-The panel observes and controls the runtime; it does not own the job lifecycle. Closing and reopening it does not create another runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. Support and Development share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
+The panel observes and controls the runtime; it does not own the job lifecycle. Closing and reopening it does not create another runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. Bug Triage and Bug Fix share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
 
-XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Development starts its own native conversation; its independent review uses a separate clean session.
+XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Bug Fix starts its own native conversation; its independent review uses a separate clean session.
 
 ### What SQLite preserves
 
@@ -113,7 +115,7 @@ State defaults to `~/.local/state/scabbers/`, overridable with `SCABBERS_HOME`. 
 
 A unique `(kind, source)` constraint prevents duplicate runs for the same input. Effect receipts are paired with remote reconciliation; they are not a blanket exactly-once guarantee for arbitrary external APIs. Errors preserve the checkpoint and request intervention. Pausing or cancelling interrupts an active stage; cancelling does not undo already completed external actions.
 
-## Support: intake, triage and handoff
+## Bug Triage: intake, triage and handoff
 
 ```mermaid
 flowchart TD
@@ -127,16 +129,16 @@ flowchart TD
     Decision -->|Yes| Route[Apply verified Jira routing]
     Route --> Publish[Publish conclusion in original Slack thread]
     Publish --> Type{Classification}
-    Type -->|Bug| Dev[Create separate Development run]
+    Type -->|Bug| Dev[Create separate Bug Fix run]
     Type -->|Other routes| Finish[Finish without automatic development]
     Dev --> Finish
 ```
 
-Support reads the configured reports channel, normally `#reports-support`. The known **Criar report** bot is an explicit intake exception; unrelated bots and Scabbers publications do not create feedback loops. A report is admitted according to its received timestamp inside the configured shifts. Eligible messages after the saved watermark can be recovered after downtime, even when the runtime resumes outside the shift. Initial setup establishes a watermark; it does not scan unlimited historical messages.
+Bug Triage reads the configured reports channel, normally `#reports-support`. The known **Criar report** bot is an explicit intake exception; unrelated bots and Scabbers publications do not create feedback loops. A report is admitted according to its received timestamp inside the configured shifts. Eligible messages after the saved watermark can be recovered after downtime, even when the runtime resumes outside the shift. Initial setup establishes a watermark; it does not scan unlimited historical messages.
 
 The investigation reads complete threads and verified Jira evidence. Objective routes include **Bug**, **Bug Crítico**, **Ticket**, **duplicate** and **cancel**. Existing identifiable triage is left alone. Duplicates require a verified open Bug; cancellation requires a valid evidenced reason and live Jira metadata. Product or missing-information handoffs keep the Report open. Ambiguous cases ask the configured owner privately.
 
-After Jira routing and Slack publication, **only a normal Bug** creates an automatic Development run. Bug Crítico and other routes do not enter development through this handoff. The new run links the destination issue and source run, inherits the selected engine and pinned SOUL, and starts with pending technical scope. The support run finishes; it does not implement the correction itself. The Development run rereads the Jira issue and code instead of copying the entire support conversation.
+After Jira routing and Slack publication, **only a normal Bug** creates an automatic Bug Fix run. Bug Crítico and other routes do not enter development through this handoff. The new run links the destination issue and source run, inherits the selected engine and pinned SOUL, and starts with pending technical scope. The support run finishes; it does not implement the correction itself. The Bug Fix run rereads the Jira issue and code instead of copying the entire support conversation.
 
 The support machine's principal transitions are:
 
@@ -155,9 +157,9 @@ stateDiagram-v2
 
 A `CANCEL` event is also available from active states. Implementation: [support processor](src/support/support-processor.ts), [intake](src/support/intake.ts), [XState definitions](src/workflows/machines.ts).
 
-## Development: eligibility, TDD and staging
+## Bug Fix: eligibility, TDD and staging
 
-**JEV runs inside Development, after the handoff and technical investigation, before creation of the correction branch or code edits.** It evaluates the versioned eligibility form using both option orders. A non-eligible result is handed off; missing JEV access blocks the checkpoint. Being assigned a Bug is not development authorization.
+**JEV runs inside Bug Fix, after the handoff and technical investigation, before creation of the correction branch or code edits.** It evaluates the versioned eligibility form using both option orders. A non-eligible result is handed off; missing JEV access blocks the checkpoint. Being assigned a Bug is not development authorization.
 
 ```mermaid
 stateDiagram-v2

@@ -17,7 +17,7 @@ import { setup } from "./config/setup.js";
 import { daemon } from "./runtime/daemon.js";
 import { request } from "./runtime/client.js";
 import { App } from "./tui/app.js";
-const help = `Scabbers · NOLA support and development\n\nscabbers                  Open Support / Development / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
+const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
 async function main(): Promise<void> {
   if (
     process.stdin.isTTY &&

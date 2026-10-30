@@ -22,6 +22,12 @@ import {
   type DOMElement,
 } from "ink";
 import { request } from "../runtime/client.js";
+const tabLabels = {
+  support: "Bug Triage",
+  development: "Bug Fix",
+  config: "Config",
+} as const;
+
 export function App({ directory }: { directory: string }): React.ReactElement {
   const { exit, suspendTerminal } = useApp();
   const { rows, columns } = useWindowSize();
@@ -264,10 +270,12 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           <Box marginY={1} justifyContent="space-between" flexShrink={0}>
             <Box gap={4}>
               <Text bold color={tab === "support" ? "cyan" : "gray"}>
-                {tab === "support" ? "▸ " : "  "}Support
+                {tab === "support" ? "▸ " : "  "}
+                {tabLabels.support}
               </Text>
               <Text bold color={tab === "development" ? "cyan" : "gray"}>
-                {tab === "development" ? "▸ " : "  "}Development
+                {tab === "development" ? "▸ " : "  "}
+                {tabLabels.development}
               </Text>
             </Box>
             <Text
@@ -386,8 +394,8 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           ) : runs.length === 0 ? (
             <Box borderStyle="single" borderColor="gray" padding={1}>
               <Text dimColor>
-                No executions in {tab}. Configure connections and review
-                settings before enabling intake.
+                No executions in {tabLabels[tab]}. Configure connections and
+                review settings before enabling intake.
               </Text>
             </Box>
           ) : (

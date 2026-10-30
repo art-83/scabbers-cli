@@ -33,8 +33,8 @@ it("renders both work areas and switches tabs without starting another runtime",
   const app = render(<App directory="/tmp/scabbers-ui-test" />);
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()).toContain("SCABBERS");
-  expect(app.lastFrame()).toContain("Support");
-  expect(app.lastFrame()).toContain("Development");
+  expect(app.lastFrame()).toContain("Bug Triage");
+  expect(app.lastFrame()).toContain("Bug Fix");
   expect(app.lastFrame()).toContain("AUTOMATION OFF");
   expect(app.lastFrame()).toContain("✓ Slack: Connected");
   expect(app.lastFrame()).toContain("✗ Jira: Not connected");
@@ -48,14 +48,14 @@ it("renders both work areas and switches tabs without starting another runtime",
   expect(app.lastFrame()).toContain("←/→ Switch tab │");
   app.stdin.write("\t");
   await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(app.lastFrame()).toContain("No executions in development");
+  expect(app.lastFrame()).toContain("No executions in Bug Fix");
   app.stdin.write("\t");
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()).toContain("Configuration");
   expect(app.lastFrame()).toContain("Enter Edit");
   app.stdin.write("\u001b[D");
   await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(app.lastFrame()).toContain("No executions in development");
+  expect(app.lastFrame()).toContain("No executions in Bug Fix");
   Object.defineProperty(app.stdout, "columns", {
     value: 70,
     configurable: true,
