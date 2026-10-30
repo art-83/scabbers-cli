@@ -3,6 +3,12 @@ import type { JiraBoard } from "../../types/jira-board.js";
 import type { JiraIssue } from "../../types/jira-issue.js";
 import type { RoutingPlan } from "../../types/routing-plan.js";
 export interface IssueTracker {
+  markdownComment?(
+    runId: string,
+    key: string,
+    text: string,
+    checkpoint?: string,
+  ): Promise<string>;
   readyForReview?(
     runId: string,
     key: string,

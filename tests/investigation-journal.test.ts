@@ -229,7 +229,7 @@ it("documents context-member analysis on an owned scope card rather than writing
       true,
     );
     expect(f.jira.comment.mock.calls[0]?.[2]).toContain(
-      "Card analisado: PNOLA-1",
+      "**Card analisado:** PNOLA-1",
     );
   } finally {
     f.close();

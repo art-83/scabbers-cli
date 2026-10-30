@@ -4,7 +4,7 @@ import type { Run } from "../workflows/types/run.js";
 import type { StageResult } from "../engines/types/stage-result.js";
 import type { IssueTracker } from "../integrations/abstractions/interface/issue-tracker.js";
 import type { InvestigationRecord } from "./types/investigation.js";
-import { redactLog } from "../logging/log-redactor.js";
+import { InvestigationPresentation } from "./investigation-presentation.js";
 
 export class InvestigationJournal {
   constructor(
@@ -79,48 +79,16 @@ export class InvestigationJournal {
       throw new Error(
         "Investigation documentation target does not match verified Jira issue",
       );
-    const result = record.result;
-    const text = redactLog(
-      [
-        "Scabbers — registro detalhado da investigação",
-        `Etapa: ${record.stage}. Resultado da análise: ${result.status}. Registro: ${new Date(record.at).toISOString()}.`,
-        record.member ? `Card analisado: ${record.member}.` : "",
-        "Contexto e conclusão:\n" + result.summary,
-        "Evidências consultadas:\n" +
-          result.evidence.map((e) => "- " + e).join("\n"),
-        result.decisionContext
-          ? "Problema e motivo de intervenção humana:\n" +
-            JSON.stringify(result.decisionContext, null, 2)
-          : "",
-        result.question
-          ? "Decisão ou informação necessária:\n" + result.question
-          : "Nenhuma decisão humana foi declarada nesta saída. Bloqueio de acesso ou contrato técnico não é automaticamente decisão de produto.",
-        result.options.length
-          ? "Opções:\n" +
-            result.options.map((o, i) => `${i + 1}. ${o}`).join("\n")
-          : "",
-        result.decision
-          ? "Recomendação e consequências:\n" +
-            JSON.stringify(result.decision, null, 2)
-          : "",
-        "Revisões de código fixadas:\n" +
-          JSON.stringify(record.revisions ?? {}, null, 2),
-        "Análise estruturada completa — fatos, hipóteses, lacunas, riscos e plano quando disponíveis:\n" +
-          JSON.stringify(result.data, null, 2),
-        "Este registro preserva a investigação para retomada. Não é aprovação de implementação, publicação ou operação. Código não lido, ferramenta não consultada e teste não executado não constituem evidência verificada.",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-    );
-    const size = 10000,
-      count = Math.max(1, Math.ceil(text.length / size));
-    for (let i = 0; i < count; i++)
-      await this.jira.comment(
+    const parts = new InvestigationPresentation().parts(record);
+    const comment =
+      this.jira.markdownComment?.bind(this.jira) ??
+      this.jira.comment.bind(this.jira);
+    for (const [index, part] of parts.entries())
+      await comment(
         run.id,
         key,
-        `Investigação — parte ${i + 1}/${count}\n` +
-          text.slice(i * size, (i + 1) * size),
-        `investigation:${record.fingerprint}:${i}`,
+        `## Investigação — parte ${index + 1}/${parts.length}\n\n` + part,
+        `investigation:${record.fingerprint}:${index}`,
       );
     record.delivered = true;
     this.store.setSetting(this.key(run, record.fingerprint), record);

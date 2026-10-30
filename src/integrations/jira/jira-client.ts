@@ -9,6 +9,7 @@ import type { Config } from "../../config/types/config.js";
 import { HttpClient } from "../http-client.js";
 import { JiraImages } from "./jira-images.js";
 import { JiraReviewProgression } from "./review-progression.js";
+import { JiraMarkdownDocument } from "./markdown-document.js";
 import { Effects } from "../../runtime/effects.js";
 import type { Store } from "../../storage/store.js";
 export class JiraClient implements IssueTracker {
@@ -99,11 +100,20 @@ export class JiraClient implements IssueTracker {
       return;
     new AssigneePolicy(this.config.accountId).assert(await this.issue(key));
   }
+  async markdownComment(
+    runId: string,
+    key: string,
+    text: string,
+    checkpoint = "documentation",
+  ): Promise<string> {
+    return this.comment(runId, key, text, checkpoint, "markdown");
+  }
   async comment(
     runId: string,
     key: string,
     text: string,
     checkpoint = "documentation",
+    format: "plain" | "markdown" = "plain",
   ): Promise<string> {
     await this.assertOwner(runId, key);
     const marker = `scabbers:${runId}:${checkpoint}`;
@@ -130,7 +140,12 @@ export class JiraClient implements IssueTracker {
         const result = await this.http.request(
           `/rest/api/3/issue/${encodeURIComponent(key)}/comment`,
           "POST",
-          { body: this.document(text + "\n" + marker) },
+          {
+            body:
+              format === "markdown"
+                ? new JiraMarkdownDocument().render(text + "\n\n" + marker)
+                : this.document(text + "\n" + marker),
+          },
         );
         return String(result.id);
       },

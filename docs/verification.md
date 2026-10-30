@@ -113,3 +113,7 @@ Jira metadata was read for the existing routed operational Ticket. No production
 ## Detailed Jira investigation records
 
 The full build and suite passed **266 tests in 37 files**. Coverage adds preservation of blocked manual plans without executable authorization, rejection of blocked executable plans, pending documentation recovery without a new model call, changed owner/evidence invalidation, exclusion of the tool's own comments and collection timestamps from cache inputs, owner-only documentation targets, credential redaction and technical failures without private decisions. Eleven records were backfilled from existing saved investigations without another LLM call. A private database backup precedes recovery of the existing operational Ticket's manual creation plan. Neither operational production execution nor a fresh runtime launch was part of this change.
+
+## Readable investigation presentation
+
+The full suite passed **268 tests in 38 files**. Investigation output uses Markdown headings, evidence lists, labeled fields and recommendations instead of serialized JSON. The Jira adapter converts that presentation into native document headings, lists and emphasis; plain comments retain their existing behavior. Tests verify evidence preservation, redaction and the actual API document shape. Existing generated investigation comments are reformatted in place with their markers preserved; source bodies are backed up privately before the edit. Workflow state, evaluations and approvals are unchanged by presentation updates.
