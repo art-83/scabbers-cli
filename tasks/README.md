@@ -14,3 +14,4 @@ Create one Markdown file per task and link it below. Keep its status and this in
 | --------------------------------------------------------------------------------------- | ------ |
 | [AWS credential diagnostics](001-aws-credential-diagnostics.md)                         | To do  |
 | [Separate Development workflow for tasks and epics](002-development-tasks-and-epics.md) | Done   |
+| [Slack decisions with context and workflow labels](003-slack-decision-context.md)       | To do  |
