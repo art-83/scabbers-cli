@@ -1,3 +1,6 @@
+import { DecisionPresentation } from "../src/decisions/presentation.js";
+import { Effects } from "../src/runtime/effects.js";
+import { EffectRejectedError } from "../src/runtime/effect-rejected-error.js";
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { Store } from "../src/storage/store.js";
@@ -197,4 +200,48 @@ it("keeps ambiguous threads pending and respects paused runs", async () => {
       at: 3000,
     }),
   ).toBe(false);
+});
+it("renders distinct Slack action IDs and accepts the selected numbered button", async () => {
+  const f = fixture();
+  const d = await f.service.ask(f.run.id, "Escolha", ["Data", "ID"], 1000);
+  const rendered = new DecisionPresentation().render(d);
+  const actions = rendered.blocks.find((b: any) => b.type === "actions") as {
+    elements: { action_id: string; value: string }[];
+  };
+  expect(new Set(actions.elements.map((b) => b.action_id)).size).toBe(2);
+  await f.service.action({
+    user: { id: "OWNER" },
+    channel: { id: "DPRIVATE" },
+    message: { thread_ts: d.thread },
+    actions: [{ ...actions.elements[1], action_ts: "2" }],
+  });
+  expect(f.service.list()[0]?.answer).toBe("ID");
+});
+it("retries definitive Slack rejection while preserving uncertain delivery protection", async () => {
+  const f = fixture();
+  const effects = new Effects(f.store);
+  const perform = vi
+    .fn()
+    .mockRejectedValueOnce(new EffectRejectedError("invalid_blocks"))
+    .mockResolvedValue("posted");
+  await expect(
+    effects.once(f.run.id, "rejected", async () => undefined, perform),
+  ).rejects.toThrow("invalid_blocks");
+  expect(
+    await effects.once(f.run.id, "rejected", async () => undefined, perform),
+  ).toBe("posted");
+  await expect(
+    effects.once(
+      f.run.id,
+      "uncertain",
+      async () => undefined,
+      async () => {
+        throw new Error("timeout");
+      },
+    ),
+  ).rejects.toThrow("timeout");
+  await expect(
+    effects.once(f.run.id, "uncertain", async () => undefined, perform),
+  ).rejects.toThrow("uncertain outcome");
+  expect(perform).toHaveBeenCalledTimes(2);
 });

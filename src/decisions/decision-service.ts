@@ -378,7 +378,7 @@ export class DecisionService {
       action_ts?: string;
     };
     for (const action of body.actions ?? []) {
-      if (action.action_id !== "scabbers_decision") continue;
+      if (!/^scabbers_decision(?:_[0-9]+)?$/.test(action.action_id)) continue;
       const value = JSON.parse(action.value);
       const actionTimestamp = action.action_ts ?? body.action_ts;
       if (!actionTimestamp) continue;

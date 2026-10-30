@@ -1,3 +1,4 @@
+import { EffectRejectedError } from "../../runtime/effect-rejected-error.js";
 import type { MessageReaction } from "../types/message-reaction.js";
 import type { MessagePage } from "../../support/types/message-page.js";
 import type { Messaging } from "../abstractions/interface/messaging.js";
@@ -105,14 +106,27 @@ export class SlackClient implements Messaging {
     thread?: string,
     blocks?: unknown[],
   ): Promise<string> {
-    const result = await this.web.chat.postMessage({
-      channel,
-      text,
-      unfurl_links: false,
-      unfurl_media: false,
-      ...(thread ? { thread_ts: thread } : {}),
-      ...(blocks ? { blocks: blocks as never } : {}),
-    });
+    let result;
+    try {
+      result = await this.web.chat.postMessage({
+        channel,
+        text,
+        unfurl_links: false,
+        unfurl_media: false,
+        ...(thread ? { thread_ts: thread } : {}),
+        ...(blocks ? { blocks: blocks as never } : {}),
+      });
+    } catch (error) {
+      if (
+        (error as { data?: { error?: string } }).data?.error ===
+        "invalid_blocks"
+      )
+        throw new EffectRejectedError(
+          "Slack rejected the message layout (invalid_blocks); no message was posted",
+          { cause: error },
+        );
+      throw error;
+    }
     if (!result.ts) throw new Error("Slack did not return a timestamp");
     return result.ts;
   }

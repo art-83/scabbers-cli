@@ -1,3 +1,4 @@
+import { EffectRejectedError } from "./effect-rejected-error.js";
 import type { Store } from "../storage/store.js";
 export class Effects {
   constructor(private readonly store: Store) {}
@@ -35,9 +36,17 @@ export class Effects {
       this.complete(key, existing);
       return existing;
     }
-    const result = await perform();
-    this.complete(key, result);
-    return result;
+    try {
+      const result = await perform();
+      this.complete(key, result);
+      return result;
+    } catch (error) {
+      if (error instanceof EffectRejectedError)
+        this.store.db
+          .prepare("DELETE FROM effects WHERE key=? AND status='pending'")
+          .run(key);
+      throw error;
+    }
   }
   private complete(key: string, result: unknown): void {
     this.store.db

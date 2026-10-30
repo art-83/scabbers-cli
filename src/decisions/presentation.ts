@@ -69,7 +69,7 @@ export class DecisionPresentation {
             type: "plain_text",
             text: `${index + 1}. ${label}`.slice(0, 75),
           },
-          action_id: "scabbers_decision",
+          action_id: `scabbers_decision_${index}`,
           value: JSON.stringify({ id: d.id, version: d.version, index }),
         })),
       });

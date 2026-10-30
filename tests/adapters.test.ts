@@ -1,3 +1,4 @@
+import { EffectRejectedError } from "../src/runtime/effect-rejected-error.js";
 import { describe, it, expect, vi } from "vitest";
 import { ClaudeEngine } from "../src/engines/claude/claude-engine.js";
 import { CodexEngine } from "../src/engines/codex/codex-engine.js";
@@ -324,4 +325,20 @@ describe("Slack pagination", () => {
     expect(await slack.replies("C", "1")).toHaveLength(2);
     expect(replies.mock.calls[1]![0]).toMatchObject({ cursor: "page2" });
   });
+});
+
+it("classifies Slack invalid_blocks as a definitive rejection without hiding uncertain network errors", async () => {
+  const slack = new SlackClient("local-test-token");
+  const post = vi.spyOn(slack.web.chat, "postMessage");
+  post.mockRejectedValueOnce(
+    Object.assign(new Error("invalid_blocks"), {
+      data: { error: "invalid_blocks" },
+    }),
+  );
+  await expect(
+    slack.post("D", "Question", undefined, []),
+  ).rejects.toBeInstanceOf(EffectRejectedError);
+  post.mockRejectedValueOnce(new Error("network timeout"));
+  await expect(slack.post("D", "Question")).rejects.toThrow("network timeout");
+  expect(post).toHaveBeenCalledTimes(2);
 });
