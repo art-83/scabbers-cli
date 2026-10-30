@@ -1,3 +1,4 @@
+import { ValidatedPlan } from "../src/features/validated-plan.js";
 import { AssigneePolicy } from "../src/features/assignee-policy.js";
 import { JiraClient } from "../src/integrations/jira/jira-client.js";
 import { FeatureAnalysis } from "../src/features/analysis.js";
@@ -713,6 +714,115 @@ it("checks assignment again at the Jira write boundary", async () => {
     await expect(
       client.transition(run.id, foreign.key, "In Progress", "claim"),
     ).rejects.toThrow("owner scope");
+  } finally {
+    store.close();
+  }
+});
+
+it("repairs generated descriptive dependencies without weakening verified-card validation", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1"),
+      valid = form(family);
+    const invalid = structuredClone(valid);
+    invalid.coverage[0]!.dependencies = [
+      "Project temporal fields before pagination",
+    ];
+    const corrected = structuredClone(valid);
+    corrected.coverage[0]!.technicalPrerequisites = [
+      "Project temporal fields before pagination",
+    ];
+    const run = store.create("feature", "repair", "codex", "profile", {
+      family,
+      scopeMembers: ["SNOLA-1"],
+    });
+    const executor = {
+      execute: vi.fn(async (current, instruction, _skill, mode) => {
+        expect(current.data.planRepair.rejected).toEqual(invalid);
+        expect(instruction).toContain("exact verified Jira card keys");
+        expect(mode).toBe("read");
+        return { status: "passed", data: corrected };
+      }),
+    };
+    const result = await new ValidatedPlan(store, executor as never).read(
+      run,
+      invalid,
+      "/pinned",
+      new AbortController().signal,
+    );
+    expect(result.coverage[0]!.dependencies).toEqual([]);
+    expect(result.coverage[0]!.technicalPrerequisites).toHaveLength(1);
+    expect(executor.execute).toHaveBeenCalledTimes(1);
+    expect(run.data.planRepair).toBeUndefined();
+  } finally {
+    store.close();
+  }
+});
+it.each(["unknown-card", "missing-coverage", "wrong-scope"])(
+  "caps automatic plan repairs and preserves guards across restart: %s",
+  async (kind) => {
+    const store = new Store(":memory:"),
+      jira = new JiraFixture([card("SNOLA-1")]);
+    try {
+      const family = await new Hierarchy(jira).read("SNOLA-1"),
+        invalid = form(family);
+      if (kind === "unknown-card")
+        invalid.coverage[0]!.dependencies = ["SNOLA-999"];
+      if (kind === "missing-coverage") invalid.coverage = [];
+      if (kind === "wrong-scope") invalid.coverage[0]!.disposition = "context";
+      const run = store.create("feature", "invalid-plan", "codex", "profile", {
+        family,
+        scopeMembers: ["SNOLA-1"],
+      });
+      const executor = {
+        execute: vi.fn(async () => ({ status: "passed", data: invalid })),
+      };
+      await expect(
+        new ValidatedPlan(store, executor as never).read(
+          run,
+          invalid,
+          "/pinned",
+          new AbortController().signal,
+        ),
+      ).rejects.toThrow("two automatic repairs");
+      expect(executor.execute).toHaveBeenCalledTimes(2);
+      expect(store.get(run.id).data.featureForm).toBeUndefined();
+      await expect(
+        new ValidatedPlan(store, executor as never).read(
+          store.get(run.id),
+          invalid,
+          "/pinned",
+          new AbortController().signal,
+        ),
+      ).rejects.toThrow("two automatic repairs");
+      expect(executor.execute).toHaveBeenCalledTimes(2);
+    } finally {
+      store.close();
+    }
+  },
+);
+it("does not launch a repair after cancellation", async () => {
+  const store = new Store(":memory:"),
+    jira = new JiraFixture([card("SNOLA-1")]);
+  try {
+    const family = await new Hierarchy(jira).read("SNOLA-1"),
+      run = store.create("feature", "cancel-repair", "codex", "profile", {
+        family,
+        scopeMembers: ["SNOLA-1"],
+      }),
+      executor = { execute: vi.fn() },
+      controller = new AbortController();
+    controller.abort();
+    await expect(
+      new ValidatedPlan(store, executor as never).read(
+        run,
+        {},
+        "/pinned",
+        controller.signal,
+      ),
+    ).rejects.toThrow();
+    expect(executor.execute).not.toHaveBeenCalled();
   } finally {
     store.close();
   }

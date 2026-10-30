@@ -18,7 +18,12 @@ export const featureFormSchema = eligibilitySchema
           key: z.string(),
           acceptance: z.array(z.string().min(1)).min(1),
           approach: z.string().min(1),
-          dependencies: z.array(z.string()),
+          dependencies: z
+            .array(z.string().regex(/^[A-Z][A-Z0-9]+-\d+$/))
+            .describe(
+              "Only exact verified Jira issue keys; technical prerequisites belong in technicalPrerequisites or approach",
+            ),
+          technicalPrerequisites: z.array(z.string().min(1)).default([]),
           disposition: z.enum(["implement", "context"]),
         }),
       )

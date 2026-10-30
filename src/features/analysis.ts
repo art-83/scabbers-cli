@@ -1,3 +1,4 @@
+import { ValidatedPlan } from "./validated-plan.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
 import { z } from "zod";
 import type { Store } from "../storage/store.js";
@@ -59,7 +60,14 @@ export class FeatureAnalysis {
         );
         return true;
       }
-      const updated = featureFormSchema.parse(result.data);
+      const updated = await new ValidatedPlan(this.store, this.executor).read(
+        run,
+        result.data,
+        Object.values(
+          run.data.analysisWorkspaces as Record<string, string>,
+        )[0]!,
+        signal,
+      );
       if (
         updated.open_decisions.some((q) =>
           answers.some((a) => a.question === q.question),
@@ -135,7 +143,7 @@ export class FeatureAnalysis {
       );
     const result = await this.executor.execute(
       run,
-      "Synthesize ALL saved member analyses into one feature delivery per repository. Preserve completed work, list every family member in coverage, use disposition implement only for scopeMembers and context for others. Resolve dependencies and name acceptance tests and bounded repository-prefixed files. No edits. Use this feature form schema: " +
+      "Synthesize ALL saved member analyses into one feature delivery per repository. Preserve completed work, list every family member in coverage, use disposition implement only for scopeMembers and context for others. Use coverage.dependencies only for exact verified Jira card keys, and coverage.technicalPrerequisites for descriptive technical work. Resolve dependencies and name acceptance tests and bounded repository-prefixed files. No edits. Use this feature form schema: " +
         JSON.stringify(z.toJSONSchema(featureFormSchema)),
       "nola-engineering:solution-analysis",
       "read",
@@ -151,7 +159,15 @@ export class FeatureAnalysis {
       );
       return;
     }
-    this.acceptFeatureForm(run, featureFormSchema.parse(result.data));
+    this.acceptFeatureForm(
+      run,
+      await new ValidatedPlan(this.store, this.executor).read(
+        run,
+        result.data,
+        cwd,
+        signal,
+      ),
+    );
     this.workflow.transition(run, "FORM");
   }
   private acceptFeatureForm(run: Run, form: FeatureForm): void {
