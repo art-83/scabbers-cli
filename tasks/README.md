@@ -17,3 +17,4 @@ Create one Markdown file per task and link it below. Keep its status and this in
 | [Slack decisions with context and workflow labels](003-slack-decision-context.md)        | Done   |
 | [Operational Tasks with two explicit approvals](004-operational-tasks.md)                | Done   |
 | [Durable Jira investigations and clear technical handoffs](005-investigation-records.md) | Done   |
+| [Vídeos como contexto de investigação](006-video-evidence-context.md)                    | To do  |
