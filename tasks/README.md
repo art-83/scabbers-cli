@@ -13,4 +13,4 @@ Create one Markdown file per task and link it below. Keep its status and this in
 | Task                                                                                    | Status |
 | --------------------------------------------------------------------------------------- | ------ |
 | [AWS credential diagnostics](001-aws-credential-diagnostics.md)                         | To do  |
-| [Separate Development workflow for tasks and epics](002-development-tasks-and-epics.md) | To do  |
+| [Separate Development workflow for tasks and epics](002-development-tasks-and-epics.md) | Done   |

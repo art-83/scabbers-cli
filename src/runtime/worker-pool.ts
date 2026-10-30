@@ -1,3 +1,4 @@
+import type { Family } from "../features/types/family.js";
 import type { Store } from "../storage/store.js";
 import type { Run } from "../workflows/types/run.js";
 export class WorkerPool {
@@ -42,7 +43,27 @@ export class WorkerPool {
         .get(run.id);
       if (decisions?.status === "pending") continue;
       const resource = String(run.data.worktree ?? run.source);
-      if (!this.store.acquire(resource, run.id)) continue;
+      const family = run.data.family as Family | undefined;
+      const resources = [
+        resource,
+        ...(family
+          ? [
+              `family:${family.root}`,
+              ...family.members.map((i) => `issue:${i.key}`),
+            ]
+          : run.data.issueKey
+            ? [`issue:${run.data.issueKey}`]
+            : []),
+      ];
+      const acquired = this.store.transaction(() => {
+        for (const item of new Set(resources))
+          if (!this.store.acquire(item, run.id)) {
+            this.store.release(run.id);
+            return false;
+          }
+        return true;
+      });
+      if (!acquired) continue;
       const controller = new AbortController();
       this.active.set(run.id, controller);
       this.store.log(run.id, `${run.kind} · ${run.state}: worker started`);

@@ -6,6 +6,16 @@ import { Secrets } from "../secrets.js";
 import { JevClient } from "./jev-client.js";
 export class ConfiguredJudge implements EligibilityJudge {
   constructor(private readonly config: Config) {}
+  async classifyFeature(
+    form: import("../../features/types/feature-form.js").FeatureForm,
+    blockedNames: string[],
+  ): Promise<EligibilityVerdict> {
+    const key = await new Secrets(
+      this.config.aws,
+      this.config.credentialKeys,
+    ).get("TYPESAFE_API_KEY", this.config.jevKeyParameter);
+    return new JevClient(key).classifyFeature(form, blockedNames);
+  }
   async classify(
     form: EligibilityForm,
     blockedNames: string[],

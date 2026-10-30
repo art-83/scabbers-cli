@@ -1,4 +1,4 @@
-import { assertEvidence } from "./evidence-guards.js";
+import { WorkflowEvidence } from "./evidence-guards.js";
 import { createActor, type AnyActorRef } from "xstate";
 import { supportMachine, developmentMachine } from "./machines.js";
 import type { Run } from "./types/run.js";
@@ -17,7 +17,7 @@ export class Workflow {
       throw new Error(`Event ${event} is not allowed in ${run.state}`);
     }
     try {
-      assertEvidence(this.store, run, event);
+      new WorkflowEvidence(this.store).assert(run, event);
     } catch (error) {
       actor.stop();
       throw error;

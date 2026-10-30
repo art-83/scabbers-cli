@@ -86,3 +86,25 @@ Plaintext diagnostics are written beside the state database in `logs/scabbers-YY
 Logs record visible stage/engine activity, tool names or commands where exposed by the native protocol, test output and failures. Prompts, hidden reasoning and full tool inputs/results are not dumped. Individual messages are limited to 16,000 characters with an explicit truncation marker. Common credential formats and secret assignments are redacted before persistence, including private-key output split across an execution's messages. This is best-effort redaction; review diagnostics before sharing.
 
 Retention removes only owned daily log files and expired SQLite diagnostic rows. Cleanup runs on startup, log viewing and activity, preserving execution snapshots and profile evidence. It requires Scabbers to run; no scheduled system service is installed. Text-storage failures preserve SQLite diagnostics and surface a Config warning. Previous unbounded `runtime.log` files are not modified or reused.
+
+## Development Jira intake
+
+`development.enabled` controls the separate feature queue; global `remoteEnabled` must also be true. Defaults are disabled, board `28`, column `To Do` and polling every 60 seconds. The board's saved filter and column statuses are resolved through Jira metadata, so Open is included when the board maps it to To Do. The runtime completes a read-only preview before its first automatic scan. `scabbers --preview-development` advances that preview without starting the runtime; add `--refresh` to discard its previous scan checkpoint. Preview and intake perform no Jira writes. Delivery stages have their own progress comments and explicit publication approvals.
+
+```json
+{
+  "development": {
+    "enabled": true,
+    "boardId": 28,
+    "column": "To Do",
+    "pollSeconds": 60,
+    "transitions": {}
+  }
+}
+```
+
+Workflow mappings are optional and keyed by `PROJECT/Issue Type`. Each configured entry requires `claim`, `documented` and `validated` target status names, checked through Jira's available transitions at mutation time. Without a mapping, the card keeps its status and receives progress comments. Discovering cross-project ancestors does not authorize changing unrelated or completed cards.
+
+Feature families use the current shared delivery machine and a distinct feature eligibility rubric. Native sessions, root/member identities, requirements fingerprints and partial analysis/discovery are preserved. Scope changes block existing attempts rather than changing their approved plan. Very large analyses exceed explicit context/JEV budgets and require an owner scope decision; no descendants are silently dropped.
+
+After installing this runtime change, restart the background process manually to load it. Reopening only the panel does not upgrade an already running runtime.

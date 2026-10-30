@@ -59,7 +59,56 @@ export class Pipeline {
     }
     if (run.state === "waiting") {
       if (!decision) return;
-      this.workflow.transition(run, "ANSWER");
+      if (run.data.resumeStage && decision.answer === "Pause") {
+        run.paused = 1;
+        this.store.db
+          .prepare("UPDATE runs SET paused=1 WHERE id=?")
+          .run(run.id);
+        this.store.save(run);
+        return;
+      }
+      if (run.kind !== "support" && run.data.resumeStage === "e2e") {
+        if (decision.answer !== "Ready: validate access again")
+          throw new Error("Browser retry requires its current access decision");
+        delete run.data.resumeStage;
+        this.workflow.transition(run, "RETRY_E2E");
+      } else if (run.kind !== "support" && run.data.resumeStage === "fixing") {
+        if (
+          !["Revise attempt", "Needs changes"].includes(decision.answer ?? "")
+        )
+          throw new Error(
+            "A new delivery attempt requires its explicit revision decision",
+          );
+        const attempts = (run.data.previousAttempts ?? []) as unknown[];
+        attempts.push({
+          attempt: run.data.deliveryAttempt ?? 0,
+          review: run.data.review,
+          publications: run.data.publications,
+          e2e: run.data.e2e,
+          finalTestDigest: run.data.finalTestDigest,
+        });
+        run.data.previousAttempts = attempts;
+        run.data.deliveryAttempt = Number(run.data.deliveryAttempt ?? 0) + 1;
+        for (const key of [
+          "resumeStage",
+          "reviewStarted",
+          "reviewSession",
+          "review",
+          "reviewBrief",
+          "publicationApproval",
+          "publicationPreview",
+          "publicationProgress",
+          "publications",
+          "readiness",
+          "finalTestDigest",
+          "finalTests",
+          "e2e",
+          "familyVerification",
+          "scopeVerified",
+        ])
+          delete run.data[key];
+        this.workflow.transition(run, "REVISE");
+      } else this.workflow.transition(run, "ANSWER");
       return;
     }
     if (run.kind === "support") {

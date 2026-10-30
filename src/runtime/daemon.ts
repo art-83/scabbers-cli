@@ -1,3 +1,6 @@
+import { IntakePresenter } from "../features/intake-presenter.js";
+import type { IntakePreview } from "../features/types/intake-preview.js";
+import { FeatureIntake } from "../features/intake.js";
 import { LOG_RETENTION_DAYS } from "../logging/text-log.js";
 import { soulFile } from "../profile/soul-file.js";
 import { BrowserSession } from "../browser/session.js";
@@ -57,7 +60,11 @@ export async function daemon(directory: string): Promise<void> {
   let pool: WorkerPool | undefined,
     decisions: DecisionService | undefined,
     intake: Intake | undefined,
-    socket: SocketListener | undefined;
+    socket: SocketListener | undefined,
+    featureIntake: FeatureIntake | undefined;
+  let featureBusy = false,
+    nextFeaturePoll = 0,
+    featureRetry = 1000;
   let runtimeError: string | null = null;
   let nextSweep = 0,
     retry = 1000,
@@ -90,6 +97,15 @@ export async function daemon(directory: string): Promise<void> {
               retentionDays: LOG_RETENTION_DAYS,
               error: store.loggingError,
             },
+            developmentIntake: {
+              enabled: config.development.enabled,
+              preview: new IntakePresenter().summary(
+                store.getSetting("development-preview"),
+              ),
+              scan: new IntakePresenter().summary(
+                store.getSetting("development-scan"),
+              ),
+            },
             browserDiagnostic: store.getSetting("browser-diagnostic") ?? null,
             remoteEnabled: config.remoteEnabled,
             engine: config.engine,
@@ -118,6 +134,24 @@ export async function daemon(directory: string): Promise<void> {
               data: {
                 destination: run.data.destination,
                 issueKey: run.data.issueKey,
+                family:
+                  run.kind === "feature"
+                    ? {
+                        root: (run.data.family as any)?.root,
+                        members: (run.data.family as any)?.members?.map(
+                          (i: any) => ({
+                            key: i.key,
+                            summary: i.fields.summary,
+                          }),
+                        ),
+                        complete: (run.data.family as any)?.complete,
+                      }
+                    : undefined,
+                featureAnalysed: Object.keys(
+                  (run.data.featureAnalyses ?? {}) as object,
+                ).length,
+                scopeChanged: run.data.scopeChanged,
+                jev: run.data.jev,
               },
               snapshot: null,
               logs: store.logs(run.id),
@@ -251,6 +285,10 @@ export async function daemon(directory: string): Promise<void> {
         );
       }
     }
+    featureIntake =
+      jira && config.development.enabled
+        ? new FeatureIntake(store, config, jira, () => soul.snapshotForNewRun())
+        : undefined;
     const jev = new ConfiguredJudge(config);
     const browser = new BrowserSession(config.browser, store);
     const engines = new Map<string, Engine>([
@@ -319,7 +357,7 @@ export async function daemon(directory: string): Promise<void> {
       const changed = JSON.stringify(loaded) !== JSON.stringify(config);
       settingsPending = changed;
       if (changed) {
-        if (pool?.activeCount) return;
+        if (pool?.activeCount || featureBusy) return;
         const thisOwner = (id: string) =>
           store.db
             .prepare(
@@ -337,6 +375,8 @@ export async function daemon(directory: string): Promise<void> {
         pool = undefined;
         decisions = undefined;
         intake = undefined;
+        featureIntake = undefined;
+        nextFeaturePoll = 0;
         config = loaded;
         integrations = pendingHealth();
         nextHealthCheck = 0;
@@ -387,6 +427,40 @@ export async function daemon(directory: string): Promise<void> {
         }
       }
       if (pool) {
+        if (featureIntake && !featureBusy && Date.now() >= nextFeaturePoll) {
+          featureBusy = true;
+          nextFeaturePoll = Date.now() + config.development.pollSeconds * 1000;
+          const preview = store.getSetting("development-preview") as
+            IntakePreview | undefined;
+          const previewOnly =
+            preview?.status !== "complete" ||
+            preview.configuration !== FeatureIntake.configuration(config);
+          void featureIntake
+            .advance(previewOnly)
+            .then((result) => {
+              if (result.status === "blocked") {
+                nextFeaturePoll = Date.now() + featureRetry;
+                featureRetry = Math.min(300000, featureRetry * 2);
+              } else {
+                featureRetry = 1000;
+                if (result.status === "discovering")
+                  nextFeaturePoll = Date.now() + 1000;
+              }
+            })
+            .catch((error) => {
+              store.log(
+                null,
+                error instanceof Error
+                  ? error.message
+                  : "Development polling failed",
+              );
+              nextFeaturePoll = Date.now() + featureRetry;
+              featureRetry = Math.min(300000, featureRetry * 2);
+            })
+            .finally(() => {
+              featureBusy = false;
+            });
+        }
         await pool.tick();
         const operations: Promise<void>[] = [];
         if (Date.now() >= nextDecisionPoll) {

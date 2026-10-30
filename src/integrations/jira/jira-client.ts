@@ -1,3 +1,5 @@
+import type { JiraSearchPage } from "../types/jira-search-page.js";
+import type { JiraBoard } from "../types/jira-board.js";
 import { ReportResolver } from "./report-resolver.js";
 import type { RoutingPlan } from "../types/routing-plan.js";
 import type { IssueTracker } from "../abstractions/interface/issue-tracker.js";
@@ -18,6 +20,43 @@ export class JiraClient implements IssueTracker {
         "Basic " + Buffer.from(config.email + ":" + token).toString("base64"),
     });
     this.effects = new Effects(store);
+  }
+  async searchPage(
+    jql: string,
+    nextPageToken?: string,
+  ): Promise<JiraSearchPage> {
+    const result = await this.http.request("/rest/api/3/search/jql", "POST", {
+      jql,
+      maxResults: 100,
+      fields: ["*all"],
+      ...(nextPageToken ? { nextPageToken } : {}),
+    });
+    if (
+      !Array.isArray(result.issues) ||
+      typeof result.isLast !== "boolean" ||
+      (!result.isLast && !result.nextPageToken)
+    )
+      throw new Error("Invalid or incomplete Jira search page");
+    return result;
+  }
+  async board(id: number, columnName = "To Do"): Promise<JiraBoard> {
+    const board = await this.http.request(
+      `/rest/agile/1.0/board/${id}/configuration`,
+    );
+    const column = board.columnConfig?.columns?.find(
+      (c: any) => c.name === columnName,
+    );
+    if (!board.filter?.id || !column?.statuses?.length)
+      throw new Error("Board filter/To Do column metadata unavailable");
+    const filter = await this.http.request(
+      `/rest/api/3/filter/${board.filter.id}`,
+    );
+    if (!filter.jql) throw new Error("Saved board filter is inaccessible");
+    return {
+      filterId: String(board.filter.id),
+      statusIds: column.statuses.map((s: any) => String(s.id)),
+      name: String(board.name),
+    };
   }
   issue(key: string): Promise<any> {
     return this.http.request("/rest/api/3/issue/" + encodeURIComponent(key));

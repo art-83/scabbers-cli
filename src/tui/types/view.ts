@@ -1,11 +1,13 @@
+import type { LoggingStatus } from "../../logging/types/logging-status.js";
 import type { Run } from "../../workflows/types/run.js";
 import type { IntegrationHealth } from "../../integrations/types/integration-health.js";
-import type { BrowserDiagnostic } from "../../browser/diagnostics.js";
+import type { BrowserDiagnostic } from "../../browser/types/browser-diagnostic.js";
 export type View = {
+  developmentIntake?: import("../../features/types/intake-status.js").IntakeStatus;
   browserDiagnostic?: BrowserDiagnostic | null;
   integrations?: IntegrationHealth[];
   settingsFile?: string;
-  logging?: { directory?: string; retentionDays: number; error: string | null };
+  logging?: LoggingStatus;
   soulFile?: string;
   settingsPending?: boolean;
   settingsError?: string | null;

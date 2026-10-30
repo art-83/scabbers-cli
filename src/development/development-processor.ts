@@ -1,3 +1,6 @@
+import { FeatureAnalysis } from "../features/analysis.js";
+import { featureFormSchema } from "../features/feature-form-schema.js";
+import { FeatureDelivery } from "../features/delivery.js";
 import { privateNames } from "../integrations/jira/private-names.js";
 import { browserOrigins } from "../browser/origin-policy.js";
 import { Secrets } from "../integrations/secrets.js";
@@ -26,6 +29,7 @@ export class DevelopmentProcessor {
   private readonly workspace: Workspace;
   private readonly process = new ProcessRunner();
   private readonly publication: Publication;
+  private readonly featureAnalysis: FeatureAnalysis;
   constructor(
     private readonly store: Store,
     private readonly config: Config,
@@ -38,8 +42,23 @@ export class DevelopmentProcessor {
     this.workflow = new Workflow(store);
     this.workspace = new Workspace(directory);
     this.publication = new Publication(store, config, directory);
+    this.featureAnalysis = new FeatureAnalysis(store, executor, decisions);
   }
   async processRun(run: Run, signal: AbortSignal): Promise<void> {
+    if (run.kind === "feature" && !["waiting", "queued"].includes(run.state)) {
+      if (!this.jira)
+        throw new Error(
+          "Jira connection required for feature scope verification",
+        );
+      if (
+        !(await new FeatureDelivery(
+          this.store,
+          this.jira,
+          this.config,
+        ).verifyScope(run))
+      )
+        return;
+    }
     const decision = this.decisions
       .list()
       .filter((d) => d.runId === run.id && d.status === "answered")
@@ -47,11 +66,13 @@ export class DevelopmentProcessor {
     if (run.state === "humanValidation") {
       if (
         !decision ||
-        !decision.question.startsWith("Validate staging result")
+        !decision.question.startsWith("Validate staging result") ||
+        (Number(run.data.deliveryAttempt ?? 0) > 0 &&
+          !decision.question.includes(`attempt ${run.data.deliveryAttempt}:`))
       ) {
         await this.decisions.ask(
           run.id,
-          "Validate staging result: revise as evidências e confirme o comportamento esperado. A validação humana permanece obrigatória.",
+          `Validate staging result${run.data.deliveryAttempt ? ` attempt ${run.data.deliveryAttempt}:` : ":"} revise as evidências e confirme o comportamento esperado. A validação humana permanece obrigatória.`,
           ["Validated", "Needs changes"],
         );
         return;
@@ -62,6 +83,8 @@ export class DevelopmentProcessor {
         return;
       }
       if (decision.answer === "Needs changes") {
+        run.data.resumeStage = "fixing";
+        this.store.save(run);
         this.workflow.transition(run, "REJECT");
         return;
       }
@@ -111,6 +134,14 @@ export class DevelopmentProcessor {
         string,
         string
       >;
+      if (run.kind === "feature") {
+        await this.featureAnalysis.investigate(
+          run,
+          Object.values(analysisPaths)[0]!,
+          signal,
+        );
+        return;
+      }
       if (this.jira) {
         const issue = await this.jira.evidence(
           String(run.data.issueKey ?? run.source),
@@ -163,14 +194,27 @@ export class DevelopmentProcessor {
     const form = eligibilitySchema.parse(run.data.form);
     this.scope(run);
     if (run.state === "eligibility") {
+      if (
+        run.kind === "feature" &&
+        (await this.featureAnalysis.resolveDecisions(run, signal))
+      )
+        return;
       if (!this.jev)
         throw new Error(
           "JEV unavailable. Configure TYPESAFE_API_KEY or SSM; eligibility remains pending",
         );
-      const classification = await this.jev.classify(
-        form,
-        (run.data.identifyingNames as string[] | undefined) ?? [],
-      );
+      const names = (run.data.identifyingNames as string[] | undefined) ?? [];
+      const classification =
+        run.kind === "feature"
+          ? await (() => {
+              if (!this.jev?.classifyFeature)
+                throw new Error("Feature-specific JEV evaluator unavailable");
+              return this.jev.classifyFeature(
+                featureFormSchema.parse(run.data.featureForm),
+                names,
+              );
+            })()
+          : await this.jev.classify(form, names);
       run.data.jev = classification;
       this.store.save(run);
       if (classification.classification !== "A-candidate") {
@@ -245,6 +289,7 @@ export class DevelopmentProcessor {
         repos,
         form.products,
         signal,
+        run.data.branchName as string | undefined,
       );
       this.workspace.validatePlan(
         run.data.workspaces as Record<string, string>,
@@ -271,7 +316,9 @@ export class DevelopmentProcessor {
       }
       const instruction =
         run.state === "regression"
-          ? "Write only the regression test from observed defect evidence. Do not fix the implementation."
+          ? run.kind === "feature"
+            ? "Write only failing acceptance/unit tests for the requested feature and complete family coverage. Do not implement the feature."
+            : "Write only the regression test from observed defect evidence. Do not fix the implementation."
           : run.state === "fixing"
             ? "Implement the minimal bounded fix in the approved file plan; the independently run regression is recorded failing."
             : "Resolve findings from the single independent review. Do not start another review.";
@@ -282,7 +329,7 @@ export class DevelopmentProcessor {
           JSON.stringify(paths) +
           ". Approved file plan: " +
           JSON.stringify(form.proposed_fix.files),
-        run.state === "regression"
+        run.state === "regression" && run.kind !== "feature"
           ? "nola-engineering:bug-reproduction"
           : "nola-engineering:delivery",
         "edit",
@@ -308,8 +355,12 @@ export class DevelopmentProcessor {
           );
         const attribution = await this.executor.execute(
           run,
-          "Inspect actual test output and assertion. Prove the failure is the reported defect, not missing dependencies, syntax, setup or unrelated baseline failures. Return passed only with the exact failing assertion and a test path in data.testPath.",
-          "nola-engineering:bug-reproduction",
+          run.kind === "feature"
+            ? "Inspect the actual test failure. Prove its assertion captures requested feature acceptance criteria, not setup, syntax or unrelated failures. Return passed only with the exact assertion and changed test path in data.testPath."
+            : "Inspect actual test output and assertion. Prove the failure is the reported defect, not missing dependencies, syntax, setup or unrelated baseline failures. Return passed only with the exact failing assertion and a test path in data.testPath.",
+          run.kind === "feature"
+            ? "nola-engineering:delivery"
+            : "nola-engineering:bug-reproduction",
           "read",
           primary,
           signal,
@@ -333,12 +384,23 @@ export class DevelopmentProcessor {
         this.store.save(run);
         if (!this.jira)
           throw new Error("Jira connection required to claim confirmed Bug");
-        await this.jira.transition(
-          run.id,
-          String(run.data.issueKey ?? run.source),
-          "In Progress",
-          "claim",
-        );
+        if (run.kind === "feature")
+          await new FeatureDelivery(
+            this.store,
+            this.jira,
+            this.config,
+          ).recordProgress(
+            run,
+            "claim",
+            "Plano da família e testes de aceitação revisados. Teste falhou pelo comportamento solicitado antes da implementação; entrega em andamento.",
+          );
+        else
+          await this.jira.transition(
+            run.id,
+            String(run.data.issueKey ?? run.source),
+            "In Progress",
+            "claim",
+          );
         this.workflow.transition(run, "FAILING");
       } else {
         if (results.some((r) => r.code !== 0))
@@ -434,24 +496,39 @@ export class DevelopmentProcessor {
         string,
         { revision: string; mergeRequest: { web_url?: string } }
       >;
-      await this.jira.comment(
-        run.id,
-        String(run.data.issueKey ?? run.source),
-        `Correção implementada em worktree isolada. Teste de regressão falhou pelo defeito antes da correção; testes finais passaram. Uma revisão independente foi concluída. Staging verificado por revisão, CI e deployment. Validação E2E automática e confirmação humana ainda pendentes.\n${Object.entries(
-          publications,
+      const documentation = `Correção implementada em worktree isolada. Teste de regressão falhou pelo defeito antes da correção; testes finais passaram. Uma revisão independente foi concluída. Staging verificado por revisão, CI e deployment. Validação E2E automática e confirmação humana ainda pendentes.\n${Object.entries(
+        publications,
+      )
+        .map(
+          ([name, p]) =>
+            `${name}: ${p.revision} ${p.mergeRequest.web_url ?? ""}`,
         )
-          .map(
-            ([name, p]) =>
-              `${name}: ${p.revision} ${p.mergeRequest.web_url ?? ""}`,
-          )
-          .join("\n")}`,
-      );
-      await this.jira.transition(
-        run.id,
-        String(run.data.issueKey ?? run.source),
-        "Docs & Tests",
-        "documented",
-      );
+        .join("\n")}`;
+      if (run.kind === "feature")
+        await new FeatureDelivery(
+          this.store,
+          this.jira,
+          this.config,
+        ).recordProgress(
+          run,
+          "documented",
+          documentation
+            .replace("Correção implementada", "Funcionalidade implementada")
+            .replace("pelo defeito", "pelos critérios de aceitação"),
+        );
+      else {
+        await this.jira.comment(
+          run.id,
+          String(run.data.issueKey ?? run.source),
+          documentation,
+        );
+        await this.jira.transition(
+          run.id,
+          String(run.data.issueKey ?? run.source),
+          "Docs & Tests",
+          "documented",
+        );
+      }
       this.store.save(run);
       this.workflow.transition(run, "DEPLOYED");
       return;
@@ -472,10 +549,14 @@ export class DevelopmentProcessor {
       await this.verifyStaging(run);
       const result = await this.executor.execute(
         run,
-        "Use only native browser tools to validate the observable defect acceptance criteria on these verified STAGING endpoints: " +
+        (run.kind === "feature"
+          ? "Use only native browser tools to validate ALL implemented family feature acceptance criteria on these verified STAGING endpoints: "
+          : "Use only native browser tools to validate the observable defect acceptance criteria on these verified STAGING endpoints: ") +
           JSON.stringify(endpoints) +
           ". Do not access production or real-store environments. Missing extension, browser, login or access => blocked with exact user action. Include observable assertions and evidence paths.",
-        "nola-engineering:bug-reproduction",
+        run.kind === "feature"
+          ? "nola-engineering:delivery"
+          : "nola-engineering:bug-reproduction",
         "browser",
         primary,
         signal,
@@ -487,6 +568,8 @@ export class DevelopmentProcessor {
         return;
       }
       if (result.status === "failed") {
+        run.data.resumeStage = "fixing";
+        this.store.save(run);
         this.workflow.transition(run, "FAILED");
         await this.decisions.ask(
           run.id,
@@ -495,6 +578,9 @@ export class DevelopmentProcessor {
         );
         return;
       }
+      run.data.resumeStage = "e2e";
+      this.store.save(run);
+      this.workflow.transition(run, "ASK");
       await this.decisions.ask(run.id, result.question ?? result.summary, [
         "Ready: validate access again",
         "Pause",
@@ -524,6 +610,18 @@ export class DevelopmentProcessor {
         token,
       );
       await client.ready(publication.mergeRequest.iid, progress[name]!.head);
+    }
+    if (run.kind === "feature") {
+      await new FeatureDelivery(
+        this.store,
+        this.jira,
+        this.config,
+      ).recordProgress(
+        run,
+        "validated",
+        "Validação humana de staging recebida. MRs liberados para revisão; nenhuma alteração de produção realizada.",
+      );
+      return;
     }
     await this.jira.comment(
       run.id,

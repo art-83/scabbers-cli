@@ -30,7 +30,9 @@ export const developmentMachine = createMachine({
       on: { PASSED: "humanValidation", FAILED: "waiting", ASK: "waiting" },
     },
     humanValidation: { on: { VALIDATED: "done", REJECT: "waiting" } },
-    waiting: { on: { ANSWER: "investigating" } },
+    waiting: {
+      on: { ANSWER: "investigating", RETRY_E2E: "e2e", REVISE: "fixing" },
+    },
     handoff: { type: "final" },
     done: { type: "final" },
     cancelled: { type: "final" },

@@ -6,7 +6,7 @@ Delivery review date: **2026-10-30**. Checkout: `/home/arthur-nicolas/Projects/s
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **70 tests in 20 files** and covers:
+The final suite contains **100 tests in 23 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -71,3 +71,9 @@ The SOUL source resolver defaults to the selected settings directory, regardless
 Fresh-base verification uses real local bare remotes: upstream changes made after cloning appear in new detached analysis worktrees, while dirty source files and the user branch remain unchanged. Retries and post-JEV branch creation preserve the pinned revision even after upstream advances. Explicit `main` bases work; unavailable remotes block new preparation despite cached refs. The development fixture asserts that investigation runs in the detached worktree before eligibility.
 
 Plaintext logging verification covers private file permissions, per-run timestamps, credential redaction, split private-key output, daily rotation and 30-day cleanup boundaries. It preserves unrelated files, symlinks, run state and approved profiles. A failed text sink leaves SQLite diagnostics available and recovers on a later write. A real CLI subprocess reads logs without creating a runtime socket/PID or requiring settings; process-runner fixtures also verify final unterminated stderr output. These tests use private temporary directories and do not start the user's runtime.
+
+Development feature coverage includes paginated board discovery, cross-project ancestors, deep subtasks, orphan ownership, inaccessible explicit references, cycle/token-loop detection, serialized discovery recovery, sibling deduplication, scope versions, opt-outs, active/mixed families, completed context, fresh scope checks after waits, project/type workflow mappings and global member locks. HTTP fixtures verify the actual enhanced Jira search and board/filter contract. Separate feature-JEV tests verify both option orders and minimized evidence. A local Git fixture exercises the feature path through pinned analysis, member synthesis, feature eligibility, failing acceptance tests, implementation, one review and final green checks without publication. Retry tests cover access retry, new-attempt approval invalidation, Pause and rejection of old human validation. Product answers are applied to the full feature plan before eligibility is reconsidered. No real Jira/Slack mutations, feature JEV calls or customer feature implementation were performed by this verification.
+
+The structural review moved domain contracts into dedicated type files across feature discovery, configuration menus, browser diagnostics, runtime protocol, logging and the mascot. Feature behavior is grouped in injected services/models (`JiraCard`, `Hierarchy`, `FamilyPolicy`, `FeatureAnalysis`, `FeatureDelivery`, `FeatureIntake`). Formatting helpers and React components remain functions.
+
+A read-only invocation of the new CLI against the actual Jira configuration confirmed Visão Unificada Nola, saved filter 10594 and status IDs 10003/1. Its bounded first batch produced one complete family, four explicit exclusions and an unfinished family checkpoint, with additional candidates queued. This confirms the real discovery transport and saved partial progress, not a complete board inventory or feature delivery. No runtime was started for that preview.

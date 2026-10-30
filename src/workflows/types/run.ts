@@ -1,4 +1,4 @@
-export type RunKind = "support" | "development";
+export type RunKind = "support" | "development" | "feature";
 export type Run = {
   id: string;
   kind: RunKind;

@@ -72,5 +72,12 @@
   },
   "historySources": [],
   "paths": [],
-  "browser": {}
+  "browser": {},
+  "development": {
+    "enabled": false,
+    "boardId": 28,
+    "column": "To Do",
+    "pollSeconds": 60,
+    "transitions": {}
+  }
 }

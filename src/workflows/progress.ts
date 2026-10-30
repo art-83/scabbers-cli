@@ -18,7 +18,7 @@ const stages = {
   ],
 };
 export function progress(run: Run): string {
-  const workflow = stages[run.kind];
+  const workflow = stages[run.kind === "feature" ? "development" : run.kind];
   const index = workflow.indexOf(run.state);
   if (index < 0) return run.state;
   const filled = Math.round((index / (workflow.length - 1)) * 8);

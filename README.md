@@ -1,6 +1,6 @@
 # Scabbers CLI
 
-Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage** and **Bug Fix** tabs display separate workflows; **Config** edits settings and connections directly in the terminal.
+Scabbers is a local NOLA workbench for support triage and bounded development of **arccanet-backend**, **arccanet-frontend** and **arcca-pdv web**. It uses TypeScript, XState, SQLite and an Ink terminal interface. The **Bug Triage**, **Bug Fix** and **Development** tabs display separate queues; **Config** edits settings and connections directly in the terminal.
 
 A single background runtime keeps working when you close the panel. **Automation is off by default.** Enabling it permits the configured Slack/Jira workflow actions; code publication and final staging validation have separate human approval steps. Installing the CLI does not install an operating-system service.
 
@@ -57,7 +57,7 @@ Tokens entered in Config persist in a private local `credentials.json` with perm
 
 | Control                | Action                                                     |
 | ---------------------- | ---------------------------------------------------------- |
-| `Tab`, `←`, `→`        | Switch Bug Triage, Bug Fix and Config                      |
+| `Tab`, `←`, `→`        | Switch Bug Triage, Bug Fix, Development and Config         |
 | `↑`, `↓`               | Select an execution, setting or menu option                |
 | `Enter`                | Open a setting or execution actions; confirm a menu choice |
 | `Esc`                  | Leave a menu without accepting its action                  |
@@ -74,7 +74,7 @@ scabbers --config /absolute/path/to/non-secret-config.json
 
 A non-interactive launch prints status. The footer keeps shortcuts at the bottom; the header separates **Automation active/off** from integration health. Green means authentication and configured access were verified; red means failed or unconfigured; yellow means checking. Successful health checks do not prove every workflow write permission.
 
-The visible names **Bug Triage** and **Bug Fix** identify the existing support and bug-correction workflows. Persisted run kinds (`support` and `development`), XState machine identities and handoff rules remain unchanged; this is a display rename, not a state migration. A separate **Development** workflow for tasks, stories and decomposed epics is planned in the [backlog](tasks/002-development-tasks-and-epics.md). It is not an active tab and does not reuse the bug-only JEV criteria.
+**Bug Triage** reads support reports; **Bug Fix** receives normal bugs from that workflow. **Development** polls Jira for feature families and standalone Stories/Tasks. Existing `support` and `development` run kinds remain compatible; the new `feature` kind reuses the same delivery XState machine with feature-specific analysis and JEV criteria.
 
 ## Diagnostic logs
 
@@ -92,13 +92,16 @@ Daily files and SQLite diagnostic rows expire after 30 days. Cleanup runs on sta
 
 ```mermaid
 flowchart TD
-    Panel[Ink panel: Bug Triage / Bug Fix / Config] <-->|Private local socket| Runtime[Single local runtime]
+    Panel[Ink panel: Bug Triage / Bug Fix / Development / Config] <-->|Private local socket| Runtime[Single local runtime]
     Settings[Validated settings.json] --> Runtime
     Credentials[Local credentials / environment / SSM] --> Clients[Slack / Jira / GitLab / JEV clients]
     Runtime --> Clients
     Runtime --> Pool[Shared bounded worker pool]
     Pool --> Support[Bug Triage XState machine]
-    Pool --> Development[Bug Fix XState machine]
+    Pool --> Development[Shared delivery XState machine]
+    JiraIntake[Jira board polling and hierarchy discovery] --> Features[Development feature queue]
+    Features --> Development
+    Runtime --> JiraIntake
     Support --> Executor[Native stage executor]
     Development --> Executor
     Executor --> Engine[Claude Code or Codex]
@@ -108,9 +111,9 @@ flowchart TD
     Development <--> DB
 ```
 
-The panel observes and controls the runtime; it does not own the job lifecycle. Closing and reopening it does not create another runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. Bug Triage and Bug Fix share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
+The panel observes and controls the runtime; it does not own the job lifecycle. Closing and reopening it does not create another runtime. The pool advances persisted runs one stage at a time, up to `workers` concurrent stages. All three queues share that limit. Resource locks prevent conflicting work; native browser stages are serialized across the engines.
 
-XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Bug Fix starts its own native conversation; its independent review uses a separate clean session.
+XState defines legal transitions for each workflow. The controller validates required evidence before sending an event, then saves the state and serialized machine snapshot in SQLite. Board/family discovery and per-member feature analysis checkpoints are saved too. Native engine session IDs are saved too: another stage resumes its conversation rather than silently replacing it. Bug Fix starts its own native conversation; its independent review uses a separate clean session.
 
 ### What SQLite preserves
 
@@ -194,6 +197,8 @@ stateDiagram-v2
     humanValidation --> waiting: REJECT
     humanValidation --> done: VALIDATED
     waiting --> investigating: ANSWER
+    waiting --> e2e: RETRY_E2E
+    waiting --> fixing: REVISE
     handoff --> [*]
     done --> [*]
     cancelled --> [*]
@@ -228,6 +233,40 @@ The runtime calls the integrations directly with the configured credentials. Con
 | GitLab staging readiness                 | At staging and E2E checkpoints | Verify revision, CI and deployment for the published change                             |
 
 **There is no periodic scan of all Jira cards.** The Slack report and linked Jira issue feed the current handoff. A healthy Jira connection does not by itself enqueue its backlog. Socket Mode is optional; paginated Slack polling continues as the supported baseline. Intake and initialization errors use bounded exponential backoff, so intervals can increase during failures. Operations and approvals wait when automation is off; connection health checks remain available.
+
+## Development: Jira tasks and epic families
+
+The controller uses the configured Jira token to resolve the saved board filter and actual To Do-column statuses. For **Visão Unificada Nola**, the known board is `28`; its current saved filter is `10594` and the column includes both To Do and Open. The LLM receives collected evidence, not the token, and does not perform polling. Discovery is independent of the support shift.
+
+```mermaid
+flowchart TD
+    Board[Saved board filter and To Do column] --> Preview[Read-only paginated preview]
+    Preview --> Parents[Resolve parents across projects]
+    Parents --> Children[Discover all descendants with saved checkpoints]
+    Children --> Family{Complete supported family?}
+    Family -->|No| Block[Record exclusion or blocker]
+    Family -->|Yes| Unit[One epic unit or standalone Story/Task]
+    Unit --> Analysis[Pinned Git bases and per-member code analysis]
+    Analysis --> Coverage[Full acceptance and dependency coverage]
+    Coverage --> JEV[Feature-specific JEV rubric]
+    JEV --> Delivery[Shared TDD, review and publication approval]
+    Delivery --> Staging[Verified staging, native browser E2E and human validation]
+```
+
+An Epic owns one implementation branch per affected repository for its entire family. A standalone Story/Task owns its own branches and includes its subtasks. Completed relatives are context, not new work. Unsupported/mixed active bug families, opt-outs, inaccessible members, cycles and concurrent work are excluded or blocked explicitly. Search can only reveal cards visible to the Jira account; explicit inaccessible references block that group, and hidden cards cannot be independently inferred.
+
+SQLite persists discovery pages, family membership, semantic requirement fingerprints, analysis results and delivery scope. Sibling candidates deduplicate into one family. Member locks prevent overlapping Bug Fix/Development stages. Requirements and membership are rechecked at delivery boundaries and after approval waits; changed scope blocks the pinned attempt. A later changed family can create a new delivery after the previous run is closed.
+
+Configure **Config → Development intake** or `development` in settings.json. New installations default to disabled. Enabling it permits automatic feature intake for the configured board: the runtime first completes a read-only preview, then enqueues fully discovered, supported groups. Both this setting and global Automation must be on. Discovery progresses in bounded batches; temporary board failures back off. One inaccessible family is recorded without stopping unrelated groups.
+
+```sh
+scabbers --preview-development
+scabbers --preview-development --refresh
+```
+
+These commands do not start the runtime or modify Jira. Repeat a partial preview to continue; `--refresh` starts a fresh one. The Development tab shows discovery progress and separate feature runs. Config also exposes the board, column, polling interval and optional workflow mappings. A `development.transitions` key has the format `PROJECT/Issue Type`, with verified `claim`, `documented` and `validated` target names. Mapped targets are checked against actual Jira transitions; unmapped types receive progress comments and retain their status. Completed/context cards receive no delivery updates.
+
+Feature JEV uses the separate `jev-feature-family-1.0.0` rubric, both alternative orders and a provisional `0.89` threshold. Product answers refine the full plan before reevaluation. File budgets, provider/domain restrictions, failing acceptance checks, one independent review per attempt, concrete publication approval and human staging validation remain mandatory. No main/master merge or production deployment is automated. Browser-access retries return to E2E; a rejected delivery starts a new explicit revision attempt, preserving prior evidence and invalidating its review/publication approvals.
 
 ## Native browser validation
 

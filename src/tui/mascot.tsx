@@ -1,12 +1,8 @@
+import type { Sprite } from "./types/sprite.js";
 import React, { useEffect, useState } from "react";
 import { Box, Text, useStdout } from "ink";
 import { readFileSync } from "node:fs";
 
-type Sprite = {
-  frame_ms: number;
-  palette: number[][];
-  sprites: Record<string, string[]>;
-};
 // Original Scabbers skill asset, bundled locally; no Python or media tools.
 const sprite: Sprite = JSON.parse(
   readFileSync(new URL("../../assets/mascot.json", import.meta.url), "utf8"),

@@ -45,6 +45,24 @@ export const configSchema = z.strictObject({
       copyReportFields: z.array(z.string()).default([]),
     })
     .optional(),
+  development: z
+    .strictObject({
+      enabled: z.boolean().default(false),
+      boardId: z.number().int().positive().default(28),
+      column: z.string().min(1).default("To Do"),
+      pollSeconds: z.number().int().min(15).max(3600).default(60),
+      transitions: z
+        .record(
+          z.string(),
+          z.strictObject({
+            claim: z.string().min(1),
+            documented: z.string().min(1),
+            validated: z.string().min(1),
+          }),
+        )
+        .default({}),
+    })
+    .prefault({}),
   gitlab: z
     .strictObject({
       baseUrl: z.url().default("https://gitlab.com"),

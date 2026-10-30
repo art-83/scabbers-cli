@@ -89,13 +89,14 @@ export class Workspace {
     repositories: { name: string; path: string; baseBranch?: string }[],
     products: string[],
     signal?: AbortSignal,
+    branchName?: string,
   ): Promise<Record<string, string>> {
     new ScopePolicy().assert(
       repositories.map((r) => r.name),
       products,
     );
     const paths = await this.prepareAnalysis(runId, repositories, signal);
-    const expected = `codex/scabbers-${runId}`;
+    const expected = branchName ?? `codex/scabbers-${runId}`;
     for (const path of Object.values(paths)) {
       const branch = await this.runner.run(
         "git",

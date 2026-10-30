@@ -1,10 +1,6 @@
+import { redactLog, LogRedactor } from "../logging/log-redactor.js";
 import { dirname, join, resolve } from "node:path";
-import {
-  TextLog,
-  redactLog,
-  LogRedactor,
-  LOG_RETENTION_DAYS,
-} from "../logging/text-log.js";
+import { TextLog, LOG_RETENTION_DAYS } from "../logging/text-log.js";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Run, RunKind } from "../workflows/types/run.js";

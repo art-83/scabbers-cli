@@ -1,3 +1,5 @@
+import type { Tab } from "./types/tab.js";
+import { PreviewService } from "../features/preview-service.js";
 import {
   configureSetting,
   settingsItems,
@@ -26,15 +28,14 @@ import { request } from "../runtime/client.js";
 const tabLabels = {
   support: "Bug Triage",
   development: "Bug Fix",
+  feature: "Development",
   config: "Config",
 } as const;
 
 export function App({ directory }: { directory: string }): React.ReactElement {
   const { exit, suspendTerminal } = useApp();
   const { rows, columns } = useWindowSize();
-  const [tab, setTab] = useState<"support" | "development" | "config">(
-    "support",
-  );
+  const [tab, setTab] = useState<Tab>("support");
   const [view, setView] = useState<View>();
   const [editing, setEditing] = useState(false);
   const [configMessage, setConfigMessage] = useState("");
@@ -121,6 +122,21 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               store.close();
             }
           },
+          async () => {
+            const store = new Store(join(directory, "scabbers.db"));
+            try {
+              return JSON.stringify(
+                await new PreviewService(
+                  store,
+                  new Configuration(store, view.settingsFile!).get(),
+                ).check(),
+                null,
+                2,
+              );
+            } finally {
+              store.close();
+            }
+          },
         );
         setConfigMessage(
           saved
@@ -195,7 +211,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
       return;
     }
     if (key.tab || key.leftArrow || key.rightArrow) {
-      const tabs = ["support", "development", "config"] as const;
+      const tabs = ["support", "development", "feature", "config"] as const;
       const offset = key.leftArrow || key.shift ? -1 : 1;
       setTab(tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length]!);
       setScrollOffset(0);
@@ -275,7 +291,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
             </Box>
           </Box>
           <Box marginY={1} justifyContent="space-between" flexShrink={0}>
-            <Box gap={4}>
+            <Box gap={2}>
               <Text bold color={tab === "support" ? "#A78BFA" : "gray"}>
                 {tab === "support" ? "▸ " : "  "}
                 {tabLabels.support}
@@ -283,6 +299,10 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               <Text bold color={tab === "development" ? "#A78BFA" : "gray"}>
                 {tab === "development" ? "▸ " : "  "}
                 {tabLabels.development}
+              </Text>
+              <Text bold color={tab === "feature" ? "#A78BFA" : "gray"}>
+                {tab === "feature" ? "▸ " : "  "}
+                {tabLabels.feature}
               </Text>
             </Box>
             <Text
@@ -339,6 +359,34 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               First setup pending. Run scabbers --configure to select sources,
               configure your schedule and review SOUL.
             </Text>
+          )}
+          {tab === "feature" && view?.developmentIntake && (
+            <Box flexDirection="column">
+              <Text dimColor>
+                Jira intake:{" "}
+                {view.developmentIntake.enabled ? "enabled" : "off"} ·{" "}
+                {view.developmentIntake.scan?.status ??
+                  view.developmentIntake.preview?.status ??
+                  "waiting for first preview"}
+              </Text>
+              <Text dimColor>
+                {view.developmentIntake.scan?.families.length ??
+                  view.developmentIntake.preview?.families.length ??
+                  0}{" "}
+                complete families ·{" "}
+                {view.developmentIntake.scan?.excluded.length ??
+                  view.developmentIntake.preview?.excluded.length ??
+                  0}{" "}
+                excluded
+              </Text>
+              {(view.developmentIntake.scan?.error ??
+                view.developmentIntake.preview?.error) && (
+                <Text color="red">
+                  {view.developmentIntake.scan?.error ??
+                    view.developmentIntake.preview?.error}
+                </Text>
+              )}
+            </Box>
           )}
           {tab === "config" ? (
             <Box
@@ -474,6 +522,17 @@ export function App({ directory }: { directory: string }): React.ReactElement {
               <Text bold>
                 {selected.source} · stage {selected.state}
               </Text>
+              {selected.kind === "feature" && Boolean(selected.data.family) && (
+                <Text dimColor>
+                  Family {(selected.data.family as { root: string }).root} ·{" "}
+                  {
+                    (selected.data.family as { members: unknown[] }).members
+                      .length
+                  }{" "}
+                  cards · {String(selected.data.featureAnalysed ?? 0)} analysed
+                  {selected.data.scopeChanged ? " · scope changed" : ""}
+                </Text>
+              )}
               <Text dimColor>
                 Profile {selected.profileVersion.slice(0, 12)} · native session{" "}
                 {selected.sessionId ?? "not started"}

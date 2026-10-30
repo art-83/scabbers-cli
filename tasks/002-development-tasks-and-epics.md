@@ -1,6 +1,6 @@
 # Separate Development queue for tasks and epics
 
-Status: **To do**
+Status: **Done**
 
 Implementation plan agreed during the current design discussion. This entry does not activate Jira polling, enqueue work or authorize publication. Bug Triage and Bug Fix remain intact.
 
@@ -87,6 +87,10 @@ Run the complete bug regression suite alongside the new scenarios. Validate the 
 
 ## Current validation evidence
 
-Board/filter/column configuration and a first-page JQL query were verified read-only. No new intake was activated, no Jira card was modified and no real feature was submitted to JEV. Implementation remains **To do**.
+Board/filter/column configuration and a first-page JQL query were verified read-only. No new intake was activated, no Jira card was modified and no real feature was submitted to JEV. The initial discovery evidence above predates implementation.
 
 References: [Jira enhanced issue search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [current shared state machines](../src/workflows/machines.ts), [worker pool](../src/runtime/worker-pool.ts), [existing delivery processor](../src/development/development-processor.ts).
+
+## Implemented verification
+
+The separate `feature` queue, Jira board metadata/search adapter, resumable family discovery, scope deduplication, per-member analysis, feature JEV rubric, shared delivery guards, feature progress documentation and Development tab are implemented. The structural review separates domain types and injected services. Unit/local-process coverage includes family graphs, failed access, changed scope, JEV contracts, one-branch ownership, failing acceptance tests, explicit retry attempts and shared workers. No real delivery or Jira mutation has been executed. The full suite passes 100 tests in 23 files; TypeScript and packaging checks pass. A real read-only first preview confirmed the current board/filter/status mapping and persisted a complete family plus an in-progress descendant checkpoint. The initial board inventory remains partial and resumes on the next invocation. No real delivery or feature-JEV request has run; user-selected staging E2E remains the next operational validation.

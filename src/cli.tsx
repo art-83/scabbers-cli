@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { TextLog, redactLog } from "./logging/text-log.js";
+import { redactLog } from "./logging/log-redactor.js";
+import { PreviewService } from "./features/preview-service.js";
+import { TextLog } from "./logging/text-log.js";
 import { soulFile } from "./profile/soul-file.js";
 import { Soul } from "./profile/soul.js";
 import { reviewSoul } from "./profile/review-soul.js";
@@ -18,7 +20,7 @@ import { setup } from "./config/setup.js";
 import { daemon } from "./runtime/daemon.js";
 import { request } from "./runtime/client.js";
 import { App } from "./tui/app.js";
-const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --logs           Show recent text logs without starting the runtime\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
+const help = `Scabbers · NOLA bug triage and bug fixes\n\nscabbers                  Open Bug Triage / Bug Fix / Development / Config panel; detach with q\nscabbers --configure      Guided first setup and SOUL proposal/review\nscabbers --review-soul    Review an existing skill-generated SOUL proposal\nscabbers --doctor         Local configuration/capability diagnostics (no remote writes)\nscabbers --status         Runtime status JSON\nscabbers --preview-development  Preview Jira families (read-only, resumable)\nscabbers --logs           Show recent text logs without starting the runtime\nscabbers --stop           Stop local runtime (keeps data and sessions)\nscabbers --config FILE    Import non-secret JSON; remote processing forced OFF\nscabbers --help           Show help\n\nState: SCABBERS_HOME or ~/.local/state/scabbers. Node >=24 required.\n`;
 async function main(): Promise<void> {
   if (
     process.stdin.isTTY &&
@@ -65,6 +67,22 @@ async function main(): Promise<void> {
   }
   const store = new Store(join(directory, "scabbers.db"));
   const configuration = new Configuration(store);
+  if (process.argv.includes("--preview-development")) {
+    try {
+      console.log(
+        JSON.stringify(
+          await new PreviewService(store, configuration.get()).check(
+            process.argv.includes("--refresh"),
+          ),
+          null,
+          2,
+        ),
+      );
+    } finally {
+      store.close();
+    }
+    return;
+  }
   if (process.argv.includes("--review-soul")) {
     try {
       await reviewSoul(

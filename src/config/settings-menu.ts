@@ -1,3 +1,6 @@
+import type { SettingsSection } from "./types/settings-section.js";
+import type { Prompts } from "./types/settings-prompts.js";
+import type { Field } from "./types/settings-field.js";
 import { readFileSync } from "node:fs";
 import { Configuration } from "./configuration.js";
 import { configSchema, type Config } from "./types/config.js";
@@ -16,15 +19,9 @@ export const settingsSections = [
   "jira",
   "gitlab",
   "browser",
+  "development",
   "advanced",
 ] as const;
-export type SettingsSection = (typeof settingsSections)[number];
-type Prompts = {
-  choose: typeof choose;
-  text: typeof text;
-  secret: typeof secret;
-};
-type Field = { key: string; label: string; kind?: "json" | "number" };
 
 export function settingsItems(
   path: string,
@@ -47,6 +44,10 @@ export function settingsItems(
     { key: "jira", label: "Jira · connection and authentication" },
     { key: "gitlab", label: "GitLab · connection and authentication" },
     {
+      key: "development",
+      label: `Development intake · ${config.development.enabled ? "enabled" : "off"} · Jira board ${config.development.boardId}`,
+    },
+    {
       key: "browser",
       label: "Browser · native engine permissions and connection check",
     },
@@ -63,6 +64,7 @@ export async function configureSetting(
   prompts: Prompts = { choose, text, secret },
   credentials = new CredentialStore(),
   checkBrowser?: () => Promise<string>,
+  previewDevelopment?: () => Promise<string>,
 ): Promise<boolean> {
   const original = readFileSync(path, "utf8");
   const store = new Store(":memory:");
@@ -177,6 +179,43 @@ export async function configureSetting(
           },
         ],
       );
+    } else if (section === "development") {
+      for (;;) {
+        const action = await prompts.choose("Development Jira intake", [
+          { label: "Read-only board/family preview", value: "preview" },
+          {
+            label: config.development.enabled
+              ? "Disable automatic Jira intake"
+              : "Enable automatic intake for the configured board",
+            value: "toggle",
+          },
+          { label: "Board, polling and workflow mappings", value: "settings" },
+          { label: "Done", value: "done" },
+        ]);
+        if (action === "done") break;
+        if (action === "preview") {
+          if (!previewDevelopment)
+            throw new Error(
+              "Preview unavailable; use scabbers --preview-development",
+            );
+          await prompts.choose(await previewDevelopment(), [
+            { label: "Return", value: "return" },
+          ]);
+        }
+        if (action === "toggle")
+          config.development.enabled = !config.development.enabled;
+        if (action === "settings")
+          await fields("Development intake settings", config.development, [
+            { key: "boardId", label: "Jira board ID", kind: "number" },
+            { key: "column", label: "Candidate column" },
+            { key: "pollSeconds", label: "Polling seconds", kind: "number" },
+            {
+              key: "transitions",
+              label: "Verified project/type workflow mappings (JSON)",
+              kind: "json",
+            },
+          ]);
+      }
     } else if (section === "schedule") {
       config.schedule ??= { zone: "America/Sao_Paulo", shifts: [] };
       for (;;) {

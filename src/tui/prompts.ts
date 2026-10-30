@@ -1,12 +1,8 @@
+import type { Choice } from "./types/choice.js";
 import { createInterface } from "node:readline/promises";
 import { emitKeypressEvents, type Key } from "node:readline";
 import { stdin, stdout } from "node:process";
 import { terminalStyle as style } from "./terminal-style.js";
-
-export interface Choice {
-  label: string;
-  value: string;
-}
 
 export async function text(prompt: string): Promise<string> {
   const rl = createInterface({ input: stdin, output: stdout });

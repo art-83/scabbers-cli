@@ -1,19 +1,10 @@
+import type { BrowserDiagnostic } from "./types/browser-diagnostic.js";
 import type { Config } from "../config/types/config.js";
 import type { Store } from "../storage/store.js";
 import type { Engine } from "../engines/abstractions/interface/engine.js";
 import { CodexEngine } from "../engines/codex/codex-engine.js";
 import { ClaudeEngine } from "../engines/claude/claude-engine.js";
 import { BrowserSession } from "./session.js";
-
-export type BrowserDiagnostic = {
-  status: "checking" | "connected" | "blocked";
-  engine: string;
-  origin: string;
-  summary: string;
-  checkedAt: number;
-  sessionId: string | null;
-  processId?: number;
-};
 
 export async function checkNativeBrowser(
   store: Store,

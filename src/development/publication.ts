@@ -82,9 +82,10 @@ export class Publication {
     }
     if (!preview || run.data.publicationApproval !== preview.digest)
       throw new Error("Missing reviewed publication snapshot");
-    const token = await new Secrets(this.config.aws).get(
-      "SCABBERS_GITLAB_TOKEN",
-    );
+    const token = await new Secrets(
+      this.config.aws,
+      this.config.credentialKeys,
+    ).get("SCABBERS_GITLAB_TOKEN");
     const results: Record<string, unknown> = {};
     for (const [name, path] of Object.entries(
       run.data.workspaces as Record<string, string>,
@@ -103,7 +104,9 @@ export class Publication {
         { ...this.config.gitlab, projectId },
         token,
       );
-      const branch = `codex/scabbers-${run.id}`;
+      const branch =
+        (run.data.branchName as string | undefined) ??
+        `codex/scabbers-${run.id}`;
       const git = async (args: string[], cwd = path) => {
         const result = await this.runner.run("git", args, cwd);
         if (result.code)
@@ -187,6 +190,7 @@ export class Publication {
               integration,
               "origin/staging",
             ]);
+          await git(["merge", "--ff-only", "origin/staging"], integration);
           await git(
             [
               "merge",

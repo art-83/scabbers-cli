@@ -1,9 +1,16 @@
+import type { FeatureForm } from "../../features/types/feature-form.js";
 import type { EligibilityJudge } from "../abstractions/interface/eligibility-judge.js";
 import { readFileSync } from "node:fs";
 import type { EligibilityForm } from "./types/eligibility-form.js";
 const spec = JSON.parse(
   readFileSync(
     new URL("../../../assets/eligibility-form.json", import.meta.url),
+    "utf8",
+  ),
+);
+const featureSpec = JSON.parse(
+  readFileSync(
+    new URL("../../../assets/feature-eligibility.json", import.meta.url),
     "utf8",
   ),
 );
@@ -110,6 +117,68 @@ export class JevClient implements EligibilityJudge {
         },
       ],
     };
+    const gates =
+      !["Bug", "Bug Crítico"].includes(form.issueType) ||
+      form.labels.some((label) => label.toLowerCase() === "no-auto") ||
+      (form.requires_outside_code.needed &&
+        form.requires_outside_code.action === "change");
+    return this.evaluate(state, spec, gates);
+  }
+  async classifyFeature(
+    form: FeatureForm,
+    blockedNames: string[],
+  ): Promise<import("../types/eligibility-verdict.js").EligibilityVerdict> {
+    const text = (value: string) => {
+      const cleaned = clean(value);
+      if (
+        blockedNames.some(
+          (n) => n.trim() && cleaned.toLowerCase().includes(n.toLowerCase()),
+        )
+      )
+        throw new Error("Identifying name in JEV evidence");
+      return cleaned;
+    };
+    const state = {
+      request: text(form.request),
+      baseline: text(form.baseline),
+      component: text(form.component),
+      coverage: form.coverage.map((c, i) => ({
+        member: `member${i + 1}`,
+        disposition: c.disposition,
+        acceptance: c.acceptance.map(text),
+        approach: text(c.approach),
+        dependencies: c.dependencies.map(text),
+      })),
+      plan: {
+        summary: text(form.implementation.summary),
+        files: form.implementation.files.map(text),
+        failing_test: text(form.implementation.failing_test),
+      },
+      evidence: form.evidence.map((e) => ({
+        kind: e.kind,
+        excerpt: text(e.excerpt),
+      })),
+      code: form.code.map((e) => ({
+        repository: text(e.repository),
+        path: text(e.path),
+        line: e.line,
+        excerpt: scanSecrets(e.excerpt),
+      })),
+      gaps: form.open_decisions.map((d) => text(d.question)),
+      risks: form.risks.map(text),
+    };
+    const gates =
+      !/^(Epic|Épico|Story|História|Task|Tarefa)$/i.test(form.issueType) ||
+      form.labels.some((l) => l.toLowerCase() === "no-auto") ||
+      (form.requires_outside_code.needed &&
+        form.requires_outside_code.action === "change");
+    return this.evaluate(state, featureSpec, gates);
+  }
+  private async evaluate(
+    state: unknown,
+    spec: any,
+    gates: boolean,
+  ): Promise<import("../types/eligibility-verdict.js").EligibilityVerdict> {
     const answers: any[] = [];
     for (const reverse of [false, true]) {
       const questions = Object.fromEntries(
@@ -196,11 +265,6 @@ export class JevClient implements EligibilityJudge {
           )) /
           2,
       ) / 1000;
-    const gates =
-      !["Bug", "Bug Crítico"].includes(form.issueType) ||
-      form.labels.some((label) => label.toLowerCase() === "no-auto") ||
-      (form.requires_outside_code.needed &&
-        form.requires_outside_code.action === "change");
     return {
       classification: gates
         ? "C"

@@ -1,3 +1,4 @@
+import { redactLog } from "../src/logging/log-redactor.js";
 import { it, expect } from "vitest";
 import {
   mkdtempSync,
@@ -13,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { TextLog, redactLog } from "../src/logging/text-log.js";
+import { TextLog } from "../src/logging/text-log.js";
 import { Store } from "../src/storage/store.js";
 import { ProcessRunner } from "../src/runtime/process-runner.js";
 

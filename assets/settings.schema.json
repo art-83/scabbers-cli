@@ -191,6 +191,66 @@
       ],
       "additionalProperties": false
     },
+    "development": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "boardId": {
+          "default": 28,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "column": {
+          "default": "To Do",
+          "type": "string",
+          "minLength": 1
+        },
+        "pollSeconds": {
+          "default": 60,
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 3600
+        },
+        "transitions": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "claim": {
+                "type": "string",
+                "minLength": 1
+              },
+              "documented": {
+                "type": "string",
+                "minLength": 1
+              },
+              "validated": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["claim", "documented", "validated"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "enabled",
+        "boardId",
+        "column",
+        "pollSeconds",
+        "transitions"
+      ],
+      "additionalProperties": false
+    },
     "gitlab": {
       "type": "object",
       "properties": {
@@ -298,6 +358,7 @@
     "remoteEnabled",
     "credentialKeys",
     "slack",
+    "development",
     "repositories",
     "skillPaths",
     "historySources",

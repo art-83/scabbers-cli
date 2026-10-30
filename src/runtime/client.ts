@@ -1,6 +1,6 @@
 import { createConnection } from "node:net";
 import { join } from "node:path";
-import type { RuntimeRequest } from "./protocol.js";
+import type { RuntimeRequest } from "./types/runtime-request.js";
 export function request(
   directory: string,
   payload: RuntimeRequest,
