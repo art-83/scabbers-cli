@@ -6,7 +6,7 @@ Delivery review date: **2026-10-30**. Checkout: `/home/arthur-nicolas/Projects/s
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **129 tests in 26 files** and covers:
+The final suite contains **130 tests in 26 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -81,3 +81,5 @@ A read-only invocation of the new CLI against the actual Jira configuration conf
 Engine-profile tests verify exact CLI model/effort arguments, Claude browser SDK options, native quota error classification, successful transient-retry handling, saved per-engine sessions, pinned profiles across configuration changes, both-engine exhaustion without loops and disabled fallback. Permission/authentication/budget errors cannot trigger handoff. A fresh-review handoff preserves the older implementation session, and a still-running native process blocks a switch. These use process doubles and temporary private state; no real usage limit was induced and no live model invocation was needed.
 
 Panel-lifecycle tests start isolated IPC-owned runtimes and verify normal controller closure, abrupt parent death, refusal of a second panel, non-interactive status-only behavior and termination of managed subprocesses. Recovery still preserves queued workflow/native-session state. The singleton PID lock remains held while shutdown finishes. Engineering-scope tests distinguish product Epic statuses from active child work and enforce the maximum Ready for Code Review boundary in both validated mappings and the Jira adapter. Product Epic mappings cannot change their status. No live task implementation or Jira mutation was performed for these checks.
+
+The shutdown registry includes both process-group children launched by ProcessRunner and non-detached native children launched by the Claude SDK. A separate fixture verifies the latter are stopped as well.

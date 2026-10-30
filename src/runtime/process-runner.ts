@@ -1,15 +1,21 @@
 import { spawn } from "node:child_process";
 export class ProcessRunner {
-  private static readonly active = new Set<number>();
+  private static readonly active = new Map<number, boolean>();
+  static register(pid: number, processGroup = true): void {
+    this.active.set(pid, processGroup);
+  }
+  static unregister(pid: number): void {
+    this.active.delete(pid);
+  }
   static stopAll(): void {
-    for (const pid of this.active) {
+    for (const [pid, processGroup] of this.active) {
       try {
-        process.kill(-pid, "SIGTERM");
+        process.kill(processGroup ? -pid : pid, "SIGTERM");
       } catch {}
       const timer = setTimeout(() => {
         if (this.active.has(pid))
           try {
-            process.kill(-pid, "SIGKILL");
+            process.kill(processGroup ? -pid : pid, "SIGKILL");
           } catch {}
       }, 2000);
       timer.unref();
@@ -44,7 +50,7 @@ export class ProcessRunner {
       child.once("spawn", () => {
         try {
           if (child.pid) {
-            ProcessRunner.active.add(child.pid);
+            ProcessRunner.register(child.pid);
             onProcess?.(child.pid);
           }
         } catch {
@@ -128,7 +134,7 @@ export class ProcessRunner {
         }
       });
       child.on("close", (code) => {
-        if (child.pid) ProcessRunner.active.delete(child.pid);
+        if (child.pid) ProcessRunner.unregister(child.pid);
         if (stderrBuffer) emitErrorLine(stderrBuffer);
         clearTimeout(timer);
         if (killTimer) clearTimeout(killTimer);

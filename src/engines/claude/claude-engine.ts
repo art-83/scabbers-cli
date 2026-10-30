@@ -91,7 +91,13 @@ export class ClaudeEngine implements Engine {
               signal: options.signal,
               stdio: ["pipe", "pipe", "pipe"],
             });
-            if (child.pid) input.onProcess?.(child.pid);
+            if (child.pid) {
+              ProcessRunner.register(child.pid, false);
+              input.onProcess?.(child.pid);
+            }
+            child.once("close", () => {
+              if (child.pid) ProcessRunner.unregister(child.pid);
+            });
             return child;
           },
           canUseTool: async (tool, parameters) => {

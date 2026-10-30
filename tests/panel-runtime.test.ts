@@ -111,3 +111,23 @@ it("terminates managed subprocesses on runtime shutdown", async () => {
   expect((await execution).code).not.toBe(0);
   expect(() => process.kill(pid, 0)).toThrow();
 });
+
+it("tracks SDK-style non-detached native children in the same shutdown registry", async () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], {
+    stdio: "ignore",
+  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+    const exited = new Promise((resolve) => child.once("exit", resolve));
+    ProcessRunner.register(child.pid!, false);
+    ProcessRunner.stopAll();
+    await exited;
+    expect(() => process.kill(child.pid!, 0)).toThrow();
+  } finally {
+    if (child.pid) ProcessRunner.unregister(child.pid);
+    child.kill("SIGKILL");
+  }
+});
