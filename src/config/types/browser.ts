@@ -2,6 +2,23 @@ import { z } from "zod";
 export const browserSchema = z.strictObject({
   executable: z.string().min(1).optional(),
   profileDirectory: z.string().min(1).optional(),
+  testTenant: z
+    .strictObject({
+      origin: z.url().refine((value) => {
+        const url = new URL(value);
+        return (
+          url.protocol === "https:" &&
+          value === url.origin &&
+          !url.username &&
+          !url.password
+        );
+      }, "Use an exact HTTPS staging origin"),
+      storeName: z.string().trim().min(1),
+      brandName: z.string().trim().min(1),
+      storeId: z.string().trim().min(1).optional(),
+      subBrandId: z.string().trim().min(1).optional(),
+    })
+    .optional(),
   testOrigin: z
     .url()
     .refine((value) => {

@@ -21,6 +21,32 @@ import { join } from "node:path";
 import { nativeBrowserConfiguration } from "../src/engines/codex/native-browser.js";
 import { Configuration } from "../src/config/configuration.js";
 
+it("retains the owner-designated staging test tenant without granting another origin", () => {
+  const tenant = {
+    origin: "https://staging.nolasistemas.com",
+    storeName: "Test store",
+    brandName: "Test brand",
+  };
+  expect(
+    configSchema.parse({ browser: { testTenant: tenant } }).browser.testTenant,
+  ).toEqual(tenant);
+  for (const origin of [
+    "http://staging.example",
+    "https://staging.example/path",
+    "https://user:secret@staging.example",
+  ])
+    expect(
+      configSchema.safeParse({ browser: { testTenant: { ...tenant, origin } } })
+        .success,
+    ).toBe(false);
+  expect(
+    configSchema.safeParse({
+      browser: { testTenant: { ...tenant, storeName: " " } },
+    }).success,
+  ).toBe(false);
+  expect(configSchema.parse({}).browser.testTenant).toBeUndefined();
+});
+
 it("loads native user browser restrictions without importing unrelated servers and migrates the old list to a diagnostic target only", () => {
   const home = mkdtempSync(join(tmpdir(), "scabbers-native-policy-"));
   const store = new Store(":memory:");

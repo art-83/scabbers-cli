@@ -597,6 +597,13 @@ export class DevelopmentProcessor {
           ? "Use only native browser tools to validate ALL implemented family feature acceptance criteria on these verified STAGING endpoints: "
           : "Use only native browser tools to validate the observable defect acceptance criteria on these verified STAGING endpoints: ") +
           JSON.stringify(endpoints) +
+          ". For menu/configuration scenarios, create uniquely named synthetic products, groups AND items tied to the issue and this run; do not reuse existing catalog items as defect fixtures. Confirm required pricing, stock/link identifiers and other scenario prerequisites through the UI before judging the defect. Reuse only this run's verified synthetic fixtures on retries; preserve prior failed-fixture evidence. Capture native screenshots at setup, assertion, save/reopen and any failure, and return evidence references or saved artifact paths honestly; do not claim a screenshot was saved or attached when it was only displayed." +
+          (this.config.browser.testTenant &&
+          origins.includes(this.config.browser.testTenant.origin)
+            ? ". Owner-designated staging test tenant: " +
+              JSON.stringify(this.config.browser.testTenant) +
+              ". Confirm the selected store, brand and available identifiers match this configuration before fixture changes. The owner explicitly designated this tenant for staging E2E; do not ask again solely because its name resembles a real store. Verify downstream environment isolation and avoid real external effects. Preserve other browser tabs and the user's current work."
+            : "") +
           ". Do not access production or real-store environments. Missing extension, browser, login or access => blocked with exact user action. Include observable assertions and evidence paths.",
         run.kind === "feature"
           ? "nola-engineering:delivery"

@@ -29,6 +29,33 @@
           "type": "string",
           "minLength": 1
         },
+        "testTenant": {
+          "type": "object",
+          "properties": {
+            "origin": {
+              "type": "string",
+              "format": "uri"
+            },
+            "storeName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "brandName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "storeId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "subBrandId": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["origin", "storeName", "brandName"],
+          "additionalProperties": false
+        },
         "testOrigin": {
           "type": "string",
           "format": "uri"
