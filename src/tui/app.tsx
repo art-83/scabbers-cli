@@ -9,6 +9,7 @@ import { Configuration } from "../config/configuration.js";
 import { join } from "node:path";
 import { CredentialStore } from "../integrations/credential-store.js";
 import { Mascot } from "./mascot.js";
+import { Wordmark } from "./wordmark.js";
 import { progress } from "../workflows/progress.js";
 import type { View } from "./types/view.js";
 import React, { useEffect, useState, useRef } from "react";
@@ -227,9 +228,7 @@ export function App({ directory }: { directory: string }): React.ReactElement {
           >
             <Box alignItems="center" gap={2}>
               <Mascot />
-              <Text bold color="magenta">
-                SCABBERS · NOLA
-              </Text>
+              <Wordmark compact={columns < 80} />
             </Box>
             <Box flexDirection="column" flexShrink={0}>
               <Text bold color={view?.remoteEnabled ? "green" : "yellow"}>

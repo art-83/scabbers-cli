@@ -32,7 +32,8 @@ import { request } from "../src/runtime/client.js";
 it("renders both work areas and switches tabs without starting another runtime", async () => {
   const app = render(<App directory="/tmp/scabbers-ui-test" />);
   await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(app.lastFrame()).toContain("SCABBERS");
+  expect(app.lastFrame()).not.toContain("· NOLA");
+  expect(app.lastFrame()).toMatch(/SCABBERS|███/);
   expect(app.lastFrame()).toContain("Bug Triage");
   expect(app.lastFrame()).toContain("Bug Fix");
   expect(app.lastFrame()).toContain("AUTOMATION OFF");
@@ -64,6 +65,7 @@ it("renders both work areas and switches tabs without starting another runtime",
   app.stdout.emit("resize");
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()!.split("\n")).toHaveLength(22);
+  expect(app.lastFrame()).toContain("SCABBERS");
   expect(app.lastFrame()!.split("\n").at(-1)).toContain("q Detach");
   app.unmount();
 });
