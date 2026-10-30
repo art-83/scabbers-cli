@@ -1,18 +1,39 @@
-import { editSettings } from "../config/edit-settings.js";
+import {
+  configureSetting,
+  settingsItems,
+  settingsSections,
+} from "../config/settings-menu.js";
+import { checkNativeBrowser } from "../browser/diagnostics.js";
+import { Store } from "../storage/store.js";
+import { Configuration } from "../config/configuration.js";
+import { join } from "node:path";
+import { CredentialStore } from "../integrations/credential-store.js";
 import { Mascot } from "./mascot.js";
 import { progress } from "../workflows/progress.js";
 import type { View } from "./types/view.js";
-import React, { useEffect, useState } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Text,
+  useApp,
+  useInput,
+  useWindowSize,
+  measureElement,
+  type DOMElement,
+} from "ink";
 import { request } from "../runtime/client.js";
 export function App({ directory }: { directory: string }): React.ReactElement {
   const { exit, suspendTerminal } = useApp();
+  const { rows, columns } = useWindowSize();
   const [tab, setTab] = useState<"support" | "development" | "config">(
     "support",
   );
   const [view, setView] = useState<View>();
   const [editing, setEditing] = useState(false);
   const [configMessage, setConfigMessage] = useState("");
+  const viewportRef = useRef<DOMElement>(null);
+  const contentRef = useRef<DOMElement>(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
   const [activation, setActivation] = useState(false);
@@ -29,19 +50,75 @@ export function App({ directory }: { directory: string }): React.ReactElement {
     const timer = setInterval(() => void refresh(), 1000);
     return () => clearInterval(timer);
   }, []);
+  let configItems = settingsSections.map(
+    (key) =>
+      ({ key, label: key }) as {
+        key: (typeof settingsSections)[number];
+        label: string;
+      },
+  );
+  if (view?.settingsFile) {
+    try {
+      configItems = settingsItems(view.settingsFile);
+    } catch {
+      /* Keep menu reachable while settings are being corrected. */
+    }
+  }
   const runs = view?.runs.filter((run) => run.kind === tab) ?? [];
   const selected = runs[Math.min(index, runs.length - 1)];
   useInput((input, key) => {
     if (editing) return;
-    if (tab === "config" && key.return && view?.settingsFile) {
+    if (key.pageUp || key.pageDown) {
+      if (viewportRef.current && contentRef.current) {
+        const height = measureElement(viewportRef.current).height;
+        const maximum = Math.max(
+          0,
+          measureElement(contentRef.current).height - height,
+        );
+        setScrollOffset(
+          Math.max(
+            0,
+            Math.min(
+              maximum,
+              scrollOffset + (key.pageDown ? 1 : -1) * Math.max(1, height - 2),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (
+      tab === "config" &&
+      !activation &&
+      !actionsOpen &&
+      key.return &&
+      view?.settingsFile
+    ) {
       setEditing(true);
       setError("");
       void suspendTerminal(async () => {
-        const saved = await editSettings(view.settingsFile!);
+        const saved = await configureSetting(
+          view.settingsFile!,
+          configItems[index]!.key,
+          undefined,
+          new CredentialStore(directory),
+          async () => {
+            const store = new Store(join(directory, "scabbers.db"));
+            try {
+              const diagnostic = await checkNativeBrowser(
+                store,
+                new Configuration(store, view.settingsFile!).get(),
+              );
+              return `${diagnostic.status}: ${diagnostic.origin} · ${diagnostic.summary}`;
+            } finally {
+              store.close();
+            }
+          },
+        );
         setConfigMessage(
           saved
             ? "Settings saved. Runtime applies changes when active stages finish."
-            : "Changes discarded. Settings unchanged.",
+            : "No settings changes saved.",
         );
       })
         .catch((e: Error) => setError(e.message))
@@ -86,12 +163,22 @@ export function App({ directory }: { directory: string }): React.ReactElement {
       }
       return;
     }
+    if (tab === "config" && (key.downArrow || key.upArrow)) {
+      setIndex(
+        Math.max(
+          0,
+          Math.min(configItems.length - 1, index + (key.downArrow ? 1 : -1)),
+        ),
+      );
+      return;
+    }
     if (key.return && selected) {
       setActionIndex(0);
       setActionsOpen(true);
       return;
     }
     if (input === "e") {
+      setScrollOffset(0);
       setActivationIndex(0);
       setActivation(true);
       return;
@@ -104,241 +191,326 @@ export function App({ directory }: { directory: string }): React.ReactElement {
       const tabs = ["support", "development", "config"] as const;
       const offset = key.leftArrow || key.shift ? -1 : 1;
       setTab(tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length]!);
+      setScrollOffset(0);
       setIndex(0);
     }
     if (key.downArrow) setIndex(Math.min(index + 1, runs.length - 1));
     if (key.upArrow) setIndex(Math.max(index - 1, 0));
   });
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1} height={rows} width={columns}>
       <Box
-        borderStyle="round"
-        borderColor="magenta"
-        paddingX={2}
-        justifyContent="space-between"
+        ref={viewportRef}
+        flexDirection="column"
+        flexGrow={1}
+        flexShrink={1}
+        overflowY="hidden"
       >
-        <Box alignItems="center" gap={2}>
-          <Mascot />
-          <Text bold color="magenta">
-            SCABBERS · NOLA
-          </Text>
-        </Box>
-        <Text color={view?.remoteEnabled ? "green" : "yellow"}>
-          {view?.remoteEnabled ? "AUTOMATION ACTIVE" : "AUTOMATION OFF"}
-        </Text>
-      </Box>
-      <Box gap={4} marginY={1}>
-        <Text bold color={tab === "support" ? "cyan" : "gray"}>
-          Support
-        </Text>
-        <Text bold color={tab === "development" ? "cyan" : "gray"}>
-          Development
-        </Text>
-        <Text bold color={tab === "config" ? "cyan" : "gray"}>
-          Config
-        </Text>
-        <Text dimColor>
-          engine {view?.engine ?? "…"} · workers {view?.workers ?? "…"} · daemon{" "}
-          {view?.pid ?? "…"}
-        </Text>
-      </Box>
-      <Box gap={3} marginBottom={1}>
-        {(["Slack", "Jira", "GitLab"] as const).map((name) => {
-          const health = view?.integrations?.find((item) => item.name === name);
-          const status = health?.status ?? "checking";
-          return (
+        <Box
+          ref={contentRef}
+          flexDirection="column"
+          flexShrink={0}
+          marginTop={-scrollOffset}
+        >
+          <Box
+            borderStyle="round"
+            borderColor="magenta"
+            paddingX={2}
+            justifyContent="space-between"
+            flexShrink={0}
+          >
+            <Box alignItems="center" gap={2}>
+              <Mascot />
+              <Text bold color="magenta">
+                SCABBERS · NOLA
+              </Text>
+            </Box>
+            <Box flexDirection="column" flexShrink={0}>
+              <Text bold color={view?.remoteEnabled ? "green" : "yellow"}>
+                {view?.remoteEnabled ? "AUTOMATION ACTIVE" : "AUTOMATION OFF"}
+              </Text>
+              {(["Slack", "Jira", "GitLab"] as const).map((name) => {
+                const health = view?.integrations?.find(
+                  (item) => item.name === name,
+                );
+                const status = health?.status ?? "checking";
+                return (
+                  <Text
+                    key={name}
+                    color={
+                      status === "connected"
+                        ? "green"
+                        : status === "disconnected"
+                          ? "red"
+                          : "yellow"
+                    }
+                  >
+                    {status === "connected"
+                      ? "✓"
+                      : status === "disconnected"
+                        ? "✗"
+                        : "…"}{" "}
+                    {name}:{" "}
+                    {status === "connected"
+                      ? "Connected"
+                      : status === "disconnected"
+                        ? "Not connected"
+                        : "Checking"}
+                  </Text>
+                );
+              })}
+            </Box>
+          </Box>
+          <Box marginY={1} justifyContent="space-between" flexShrink={0}>
+            <Box gap={4}>
+              <Text bold color={tab === "support" ? "cyan" : "gray"}>
+                {tab === "support" ? "▸ " : "  "}Support
+              </Text>
+              <Text bold color={tab === "development" ? "cyan" : "gray"}>
+                {tab === "development" ? "▸ " : "  "}Development
+              </Text>
+            </Box>
             <Text
-              key={name}
-              color={
-                status === "connected"
-                  ? "green"
-                  : status === "disconnected"
-                    ? "red"
-                    : "yellow"
-              }
+              dimColor={tab !== "config"}
+              color={tab === "config" ? "cyan" : "gray"}
             >
-              {status === "connected"
-                ? "✓"
-                : status === "disconnected"
-                  ? "✗"
-                  : "…"}{" "}
-              {name}:{" "}
-              {status === "connected"
-                ? "Connected"
-                : status === "disconnected"
-                  ? "Not connected"
-                  : "Checking"}
+              {tab === "config" ? "▸ " : ""}Config
             </Text>
-          );
-        })}
-      </Box>
-      {activation && (
-        <Box
-          flexDirection="column"
-          borderStyle="double"
-          borderColor="yellow"
-          paddingX={1}
-        >
-          <Text bold>Review automation activation</Text>
-          <Text>
-            Support will read reports in the configured windows, backfill missed
-            reports, apply objective Jira routing and post conclusions.
-            Development may investigate with engines/JEV; publication requires
-            its own concrete private review. Decisions and reminders go to the
-            configured Slack owner. Totem/SmartPOS and production changes remain
-            excluded.
-          </Text>
-          <Text>{JSON.stringify(view?.activation, null, 2)}</Text>
-          <Text>↑ ↓ select · Enter confirm · Esc return</Text>
-          <Text color={activationIndex === 0 ? "cyan" : "white"}>
-            {activationIndex === 0 ? "›" : " "} Return without activation
-          </Text>
-          <Text color={activationIndex === 1 ? "cyan" : "white"}>
-            {activationIndex === 1 ? "›" : " "} Activate automation with these
-            settings
-          </Text>
-        </Box>
-      )}
-      {view?.settingsFile && (
-        <Text dimColor>
-          Settings: {view.settingsFile}
-          {view.settingsPending
-            ? " · waiting for active stages before reload"
-            : ""}
-        </Text>
-      )}
-      {!view?.profile && (
-        <Text color="yellow">
-          First setup pending. Run scabbers --configure to select sources,
-          configure your schedule and review SOUL.
-        </Text>
-      )}
-      {tab === "config" ? (
-        <Box
-          flexDirection="column"
-          borderStyle="round"
-          borderColor="cyan"
-          paddingX={1}
-        >
-          <Text bold>Edit settings.json</Text>
-          <Text dimColor>
-            Read-only connection checks refresh every minute, independently of
-            automation.
-          </Text>
-          {view?.integrations?.map((health) => (
-            <Text
-              key={health.name}
-              color={
-                health.status === "connected"
-                  ? "green"
-                  : health.status === "disconnected"
-                    ? "red"
-                    : "yellow"
-              }
+          </Box>
+          {activation && (
+            <Box
+              flexDirection="column"
+              borderStyle="double"
+              borderColor="yellow"
+              paddingX={1}
             >
-              {health.name}: {health.detail}
-              {health.checkedAt
-                ? ` · checked ${new Date(health.checkedAt).toLocaleTimeString()}`
+              <Text bold>Review automation activation</Text>
+              <Text>↑ ↓ select · Enter confirm · Esc return</Text>
+              <Text
+                color={activationIndex === 0 ? "black" : "cyan"}
+                bold={activationIndex === 0}
+                {...(activationIndex === 0 ? { backgroundColor: "cyan" } : {})}
+              >
+                {activationIndex === 0 ? "›" : " "} Return without activation
+              </Text>
+              <Text
+                color={activationIndex === 1 ? "black" : "cyan"}
+                bold={activationIndex === 1}
+                {...(activationIndex === 1 ? { backgroundColor: "cyan" } : {})}
+              >
+                {activationIndex === 1 ? "›" : " "} Activate automation with
+                these settings
+              </Text>
+
+              <Text>
+                Support will read reports in the configured windows, backfill
+                missed reports, apply objective Jira routing and post
+                conclusions. Development may investigate with engines/JEV;
+                publication requires its own concrete private review. Decisions
+                and reminders go to the configured Slack owner. Totem/SmartPOS
+                and production changes remain excluded.
+              </Text>
+              <Text>{JSON.stringify(view?.activation, null, 2)}</Text>
+            </Box>
+          )}
+          {view?.settingsFile && tab !== "config" && (
+            <Text dimColor>
+              Settings: {view.settingsFile}
+              {view.settingsPending
+                ? " · waiting for active stages before reload"
                 : ""}
             </Text>
-          ))}
-          <Text>
-            Enter opens the JSON in your terminal editor (EDITOR/VISUAL, default
-            nano).
-          </Text>
-          <Text>
-            Close the editor to validate, then select Save, Edit or Discard with
-            arrows and Enter.
-          </Text>
-          <Text>
-            Invalid JSON is kept in the draft for correction. Saved settings
-            apply after active stages finish.
-          </Text>
-          <Text dimColor>{view?.settingsFile ?? "Loading settings path…"}</Text>
-          {configMessage && <Text color="green">{configMessage}</Text>}
-        </Box>
-      ) : runs.length === 0 ? (
-        <Box borderStyle="single" borderColor="gray" padding={1}>
-          <Text dimColor>
-            No executions in {tab}. Configure connections and review settings
-            before enabling intake.
-          </Text>
-        </Box>
-      ) : (
-        <Box flexDirection="column">
-          {runs
-            .slice(Math.max(0, index - 5), Math.max(8, index + 1))
-            .map((run) => (
-              <Box key={run.id} gap={2}>
-                <Text color={run.id === selected?.id ? "cyan" : "white"}>
-                  {run.id === selected?.id ? "›" : " "}{" "}
-                  {run.source.slice(0, 40).padEnd(40)}
-                </Text>
-                <Text
-                  color={run.error ? "red" : run.paused ? "yellow" : "green"}
-                >
-                  {run.error ? "blocked" : run.paused ? "paused" : run.state}
-                </Text>
-                <Text dimColor>
-                  {progress(run)} · {run.engine} · {run.id.slice(0, 8)}
-                </Text>
-              </Box>
-            ))}
-        </Box>
-      )}
-      {actionsOpen && (
-        <Box flexDirection="column" borderStyle="round" borderColor="cyan">
-          <Text>
-            Execution actions · ↑ ↓ select · Enter confirm · Esc return
-          </Text>
-          {actions.map((label, i) => (
-            <Text key={label} color={actionIndex === i ? "cyan" : "white"}>
-              {actionIndex === i ? "›" : " "} {label}
+          )}
+          {!view?.profile && tab !== "config" && (
+            <Text color="yellow">
+              First setup pending. Run scabbers --configure to select sources,
+              configure your schedule and review SOUL.
             </Text>
-          ))}
-        </Box>
-      )}
-      {selected && (
-        <Box
-          flexDirection="column"
-          borderStyle="round"
-          borderColor="cyan"
-          paddingX={1}
-          marginTop={1}
-        >
-          <Text bold>
-            {selected.source} · stage {selected.state}
-          </Text>
-          <Text dimColor>
-            Profile {selected.profileVersion.slice(0, 12)} · native session{" "}
-            {selected.sessionId ?? "not started"}
-          </Text>
-          {selected.error && <Text color="red">{selected.error}</Text>}
-          {view?.decisions
-            .filter((d) => d.runId === selected.id && d.status === "pending")
-            .map((d, i) => (
-              <Text key={i} color="yellow">
-                Private decision: {d.question}
+          )}
+          {tab === "config" ? (
+            <Box
+              flexDirection="column"
+              borderStyle="round"
+              borderColor="cyan"
+              paddingX={1}
+            >
+              <Text bold color="magenta">
+                Configuration
               </Text>
-            ))}
-          {selected.logs.map((line, i) => (
-            <Text key={i} dimColor>
-              {line}
+              <Text dimColor>
+                ↑/↓ Select a setting · Enter Edit · save or discard in the menu
+              </Text>
+              {configItems
+                .slice(
+                  Math.max(0, index - Math.max(1, rows - 23)),
+                  Math.max(Math.max(3, rows - 19), index + 1),
+                )
+                .map((item) => (
+                  <Text
+                    key={item.key}
+                    color={
+                      configItems[index]?.key === item.key ? "black" : "cyan"
+                    }
+                    bold={configItems[index]?.key === item.key}
+                    {...(configItems[index]?.key === item.key
+                      ? { backgroundColor: "cyan" }
+                      : {})}
+                  >
+                    {configItems[index]?.key === item.key ? "›" : " "}{" "}
+                    {item.label}
+                  </Text>
+                ))}
+              <Text dimColor>
+                Integrations have separate connection settings and hidden token
+                entry.
+              </Text>
+              {configItems[index]?.key === "browser" &&
+                view?.browserDiagnostic && (
+                  <Text
+                    color={
+                      view.browserDiagnostic.status === "connected"
+                        ? "green"
+                        : view.browserDiagnostic.status === "blocked"
+                          ? "red"
+                          : "yellow"
+                    }
+                  >
+                    Browser: {view.browserDiagnostic.status} ·{" "}
+                    {view.browserDiagnostic.origin} ·{" "}
+                    {view.browserDiagnostic.summary}
+                  </Text>
+                )}
+              {configMessage && <Text color="green">{configMessage}</Text>}
+            </Box>
+          ) : runs.length === 0 ? (
+            <Box borderStyle="single" borderColor="gray" padding={1}>
+              <Text dimColor>
+                No executions in {tab}. Configure connections and review
+                settings before enabling intake.
+              </Text>
+            </Box>
+          ) : (
+            <Box flexDirection="column">
+              {runs
+                .slice(Math.max(0, index - 5), Math.max(8, index + 1))
+                .map((run) => (
+                  <Box key={run.id} gap={2}>
+                    <Text color={run.id === selected?.id ? "cyan" : "white"}>
+                      {run.id === selected?.id ? "›" : " "}{" "}
+                      {run.source.slice(0, 40).padEnd(40)}
+                    </Text>
+                    <Text
+                      color={
+                        run.error ? "red" : run.paused ? "yellow" : "green"
+                      }
+                    >
+                      {run.error
+                        ? "blocked"
+                        : run.paused
+                          ? "paused"
+                          : run.state}
+                    </Text>
+                    <Text dimColor>
+                      {progress(run)} · {run.engine} · {run.id.slice(0, 8)}
+                    </Text>
+                  </Box>
+                ))}
+            </Box>
+          )}
+          {actionsOpen && (
+            <Box flexDirection="column" borderStyle="round" borderColor="cyan">
+              <Text>
+                Execution actions · ↑ ↓ select · Enter confirm · Esc return
+              </Text>
+              {actions.map((label, i) => (
+                <Text
+                  key={label}
+                  color={
+                    actionIndex === i
+                      ? "black"
+                      : label === "Cancel"
+                        ? "red"
+                        : "cyan"
+                  }
+                  bold={actionIndex === i}
+                  {...(actionIndex === i ? { backgroundColor: "cyan" } : {})}
+                >
+                  {actionIndex === i ? "›" : " "} {label}
+                </Text>
+              ))}
+            </Box>
+          )}
+          {selected && (
+            <Box
+              flexDirection="column"
+              borderStyle="round"
+              borderColor="cyan"
+              paddingX={1}
+              marginTop={1}
+            >
+              <Text bold>
+                {selected.source} · stage {selected.state}
+              </Text>
+              <Text dimColor>
+                Profile {selected.profileVersion.slice(0, 12)} · native session{" "}
+                {selected.sessionId ?? "not started"}
+              </Text>
+              {selected.error && <Text color="red">{selected.error}</Text>}
+              {view?.decisions
+                .filter(
+                  (d) => d.runId === selected.id && d.status === "pending",
+                )
+                .map((d, i) => (
+                  <Text key={i} color="yellow">
+                    Private decision: {d.question}
+                  </Text>
+                ))}
+              {selected.logs.map((line, i) => (
+                <Text key={i} dimColor>
+                  {line}
+                </Text>
+              ))}
+            </Box>
+          )}
+          {(error || view?.settingsError || view?.runtimeError) && (
+            <Text color="red">
+              {error || view?.settingsError || view?.runtimeError}
             </Text>
-          ))}
+          )}
         </Box>
-      )}
-      {(error || view?.settingsError || view?.runtimeError) && (
-        <Text color="red">
-          {error || view?.settingsError || view?.runtimeError}
-        </Text>
-      )}
-      <Box marginTop={1}>
-        <Text dimColor>
-          Tab ← → switch · ↑ ↓ select · Enter{" "}
-          {tab === "config" ? "edit JSON" : "actions"} · e review
-          settings/activation · q detach (work continues)
-        </Text>
+      </Box>
+      <Box
+        flexShrink={0}
+        flexWrap="wrap"
+        borderStyle="single"
+        borderTop
+        borderBottom={false}
+        borderLeft={false}
+        borderRight={false}
+        paddingTop={1}
+      >
+        {(activation || actionsOpen
+          ? ["↑/↓ Select", "Enter Confirm", "Esc Return", "PgUp/PgDn Scroll"]
+          : [
+              "Tab Next tab",
+              "←/→ Switch tab",
+              "↑/↓ Select",
+              `Enter ${tab === "config" ? "Edit setting" : "Actions"}`,
+              "PgUp/PgDn Scroll",
+              "e Automation",
+              "q Detach",
+            ]
+        ).map((hint, i, hints) => (
+          <Box key={hint} marginRight={1}>
+            <Text>
+              <Text bold color="white" backgroundColor="blue">
+                {hint.split(" ")[0]}
+              </Text>
+              <Text dimColor> {hint.slice(hint.indexOf(" ") + 1)}</Text>
+              <Text color="gray">{i < hints.length - 1 ? " │" : ""}</Text>
+            </Text>
+          </Box>
+        ))}
       </Box>
     </Box>
   );

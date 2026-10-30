@@ -1,13 +1,27 @@
 import { z } from "zod";
+import { browserSchema } from "./browser.js";
 import { scheduleSchema } from "./schedule.js";
 export const configSchema = z.strictObject({
   $schema: z.string().optional(),
   paths: z.array(z.string().trim().min(1)).default([]),
   soulFile: z.string().min(1).optional(),
+  browser: browserSchema.default({}),
   version: z.literal(1).default(1),
   engine: z.enum(["claude", "codex"]).default("claude"),
   workers: z.number().int().min(1).max(16).default(3),
   remoteEnabled: z.boolean().default(false),
+  credentialKeys: z
+    .partialRecord(
+      z.enum([
+        "SCABBERS_SLACK_BOT_TOKEN",
+        "SCABBERS_SLACK_APP_TOKEN",
+        "SCABBERS_JIRA_TOKEN",
+        "SCABBERS_GITLAB_TOKEN",
+        "TYPESAFE_API_KEY",
+      ]),
+      z.string().regex(/^local:[0-9a-f-]{36}$/),
+    )
+    .default({}),
   slack: z
     .strictObject({
       channel: z.string().default("C0BU8TX3NTW"),

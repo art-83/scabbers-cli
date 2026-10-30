@@ -15,7 +15,7 @@ export function pendingHealth(): IntegrationHealth[] {
 
 export async function checkIntegrations(
   config: Config,
-  secrets = new Secrets(config.aws),
+  secrets = new Secrets(config.aws, config.credentialKeys),
 ): Promise<IntegrationHealth[]> {
   const check = async (
     name: IntegrationHealth["name"],

@@ -127,9 +127,11 @@ async function main(): Promise<void> {
               "TYPESAFE_API_KEY",
             ].map((name) => [
               name,
-              process.env[name]
-                ? "present (not displayed)"
-                : "not in process environment; SSM references may be configured",
+              config.credentialKeys[name as keyof typeof config.credentialKeys]
+                ? "stored locally (not displayed)"
+                : process.env[name]
+                  ? "present in environment (not displayed)"
+                  : "not in environment/local settings; SSM references may be configured",
             ]),
           ),
           repositories: config.repositories.map((r) => ({
@@ -142,7 +144,7 @@ async function main(): Promise<void> {
             claudeBrowser:
               "Official --chrome; requires host, extension, login, explicit per-run navigation authorization",
             codexBrowser:
-              "No verified supported CLI browser transport; E2E blocked",
+              "Official installed browser runtime and Chrome extension; native origin permission required; refused access remains blocked",
             slackDM:
               "Paginated polling supported; message.im and interactivity need app configuration for live buttons",
           },

@@ -68,5 +68,6 @@
     "nola-engineering:code-review": "/replace/with/installed/code-review/SKILL.md"
   },
   "historySources": [],
-  "paths": []
+  "paths": [],
+  "browser": {}
 }

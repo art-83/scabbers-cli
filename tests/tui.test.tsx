@@ -39,16 +39,32 @@ it("renders both work areas and switches tabs without starting another runtime",
   expect(app.lastFrame()).toContain("✓ Slack: Connected");
   expect(app.lastFrame()).toContain("✗ Jira: Not connected");
   expect(app.lastFrame()).toContain("… GitLab: Checking");
+  const header = app.lastFrame()!.split("\n");
+  const slackLine = header.findIndex((line) => line.includes("✓ Slack"));
+  expect(header[slackLine + 1]).toContain("✗ Jira");
+  expect(header[slackLine + 2]).toContain("… GitLab");
+  expect(header.at(-1)).toContain("q Detach");
+  expect(app.lastFrame()).toContain("Tab Next tab │");
+  expect(app.lastFrame()).toContain("←/→ Switch tab │");
   app.stdin.write("\t");
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()).toContain("No executions in development");
   app.stdin.write("\t");
   await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(app.lastFrame()).toContain("Edit settings.json");
-  expect(app.lastFrame()).toContain("Enter opens the JSON");
+  expect(app.lastFrame()).toContain("Configuration");
+  expect(app.lastFrame()).toContain("Enter Edit");
   app.stdin.write("\u001b[D");
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(app.lastFrame()).toContain("No executions in development");
+  Object.defineProperty(app.stdout, "columns", {
+    value: 70,
+    configurable: true,
+  });
+  Object.defineProperty(app.stdout, "rows", { value: 22, configurable: true });
+  app.stdout.emit("resize");
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(app.lastFrame()!.split("\n")).toHaveLength(22);
+  expect(app.lastFrame()!.split("\n").at(-1)).toContain("q Detach");
   app.unmount();
 });
 

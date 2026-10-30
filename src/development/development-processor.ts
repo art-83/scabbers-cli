@@ -1,4 +1,5 @@
 import { privateNames } from "../integrations/jira/private-names.js";
+import { browserOrigins } from "../browser/origin-policy.js";
 import { Secrets } from "../integrations/secrets.js";
 import { Publication } from "../development/publication.js";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -427,18 +428,19 @@ export class DevelopmentProcessor {
       return;
     }
     if (run.state === "e2e") {
-      if (run.data.browserAuthorized !== true) {
-        await this.decisions.ask(
-          run.id,
-          "Authorize staging browser navigation for this web demand. Authenticate directly in the browser; never send passwords.",
-          ["Authorize staging browser", "Pause"],
-        );
-        return;
-      }
-      await this.verifyStaging(run);
       const endpoints = this.config.repositories
         .filter((r) => form.repositories.includes(r.name))
         .map((r) => r.stagingUrl);
+      const origins = browserOrigins(endpoints);
+      if (!origins.length)
+        throw new Error(
+          "No verified staging endpoints configured for this E2E task",
+        );
+      run.data.browserAuthorized = true;
+      run.data.browserAuthorizationSource = "native-engine";
+      run.data.browserScopeOrigins = origins;
+      this.store.save(run);
+      await this.verifyStaging(run);
       const result = await this.executor.execute(
         run,
         "Use only native browser tools to validate the observable defect acceptance criteria on these verified STAGING endpoints: " +
@@ -473,9 +475,10 @@ export class DevelopmentProcessor {
   private async finalize(run: Run): Promise<void> {
     if (!this.config.gitlab || !this.jira)
       throw new Error("Verified delivery connections required");
-    const token = await new Secrets(this.config.aws).get(
-      "SCABBERS_GITLAB_TOKEN",
-    );
+    const token = await new Secrets(
+      this.config.aws,
+      this.config.credentialKeys,
+    ).get("SCABBERS_GITLAB_TOKEN");
     const publications = run.data.publications as Record<
       string,
       { mergeRequest: { iid: number } }
@@ -509,9 +512,10 @@ export class DevelopmentProcessor {
   private async verifyStaging(run: Run): Promise<Record<string, unknown>> {
     if (!this.config.gitlab)
       throw new Error("GitLab connection required to verify deployment");
-    const token = await new Secrets(this.config.aws).get(
-      "SCABBERS_GITLAB_TOKEN",
-    );
+    const token = await new Secrets(
+      this.config.aws,
+      this.config.credentialKeys,
+    ).get("SCABBERS_GITLAB_TOKEN");
     const publications = run.data.publications as
       Record<string, { revision: string }> | undefined;
     if (!publications)

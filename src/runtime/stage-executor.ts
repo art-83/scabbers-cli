@@ -1,4 +1,5 @@
 import type { ProfileSnapshot } from "../profile/types/profile-snapshot.js";
+import { browserOrigins, originsCovered } from "../browser/origin-policy.js";
 import type { StageRunner } from "../engines/abstractions/interface/stage-runner.js";
 import { dirname } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
@@ -47,6 +48,31 @@ export class StageExecutor implements StageRunner {
     if (!engine) throw new Error("Engine adapter unavailable");
     if (mode === "browser" && !engine.capabilities.nativeBrowser)
       throw new Error(engine.capabilities.browserRequirement);
+    const allowedOrigins = (run.data.browserScopeOrigins ?? []) as string[];
+    if (
+      mode === "browser" &&
+      (run.data.browserAuthorized !== true || !allowedOrigins.length)
+    )
+      throw new Error(
+        "Select the exact staging scope before starting browser validation; native engine permissions still apply",
+      );
+    if (mode === "browser") {
+      const repositories =
+        (run.data.form as { repositories?: string[] } | undefined)
+          ?.repositories ?? [];
+      const configured = browserOrigins(
+        this.config.repositories
+          .filter((repo) => repositories.includes(repo.name))
+          .map((repo) => repo.stagingUrl),
+      );
+      if (
+        !originsCovered(allowedOrigins, configured) ||
+        !originsCovered(configured, allowedOrigins)
+      )
+        throw new Error(
+          "Browser scope differs from the task's configured staging endpoints",
+        );
+    }
     let snapshot = run.data.soulSnapshot as ProfileSnapshot | undefined;
     if (!snapshot) {
       snapshot = {
@@ -76,6 +102,7 @@ export class StageExecutor implements StageRunner {
       sessionId: fresh ? null : run.sessionId,
       mode,
       browserAuthorized: run.data.browserAuthorized === true,
+      ...(mode === "browser" ? { allowedOrigins } : {}),
       directories:
         mode === "edit"
           ? Object.values(run.data.workspaces as Record<string, string>)

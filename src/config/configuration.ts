@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { configSchema, type Config } from "./types/config.js";
 import type { Store } from "../storage/store.js";
+import { migrateBrowser } from "./types/browser.js";
 import { migrateSchedule } from "./types/schedule.js";
 export function stateDirectory(): string {
   const directory = resolve(
@@ -40,8 +41,10 @@ export class Configuration {
   exists(): boolean {
     return existsSync(this.path);
   }
-  private validate(input: unknown): Config {
-    const parsed = configSchema.strict().safeParse(migrateSchedule(input));
+  validate(input: unknown): Config {
+    const parsed = configSchema
+      .strict()
+      .safeParse(migrateBrowser(migrateSchedule(input)));
     if (!parsed.success)
       throw new Error(
         `Invalid settings in ${this.path}: ` +

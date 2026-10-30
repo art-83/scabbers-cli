@@ -6,6 +6,7 @@ export type StageInput = {
   sessionId: string | null;
   mode: "read" | "edit" | "browser";
   browserAuthorized: boolean;
+  allowedOrigins?: string[];
   onSession: (id: string) => void;
   directories?: string[];
   readDirectories?: string[];

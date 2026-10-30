@@ -1,4 +1,7 @@
 import { engineEnvironment } from "../engine-environment.js";
+import { defaultBrowserSession } from "../../browser/session.js";
+import type { BrowserRuntime } from "../abstractions/interface/browser-runtime.js";
+import { nativeBrowserConfiguration } from "./native-browser.js";
 import type { Engine } from "../abstractions/interface/engine.js";
 import type { StageInput } from "../types/stage-input.js";
 import { stageResultSchema, type StageResult } from "../types/stage-result.js";
@@ -9,14 +12,27 @@ export class CodexEngine implements Engine {
     nativeSessions: true,
     read: true,
     edit: true,
-    nativeBrowser: false,
+    nativeBrowser: true,
     browserRequirement:
-      "Desktop browser tools have no verified public CLI transport. Select Claude with Chrome for staging E2E.",
+      "Requires the installed official Codex browser runtime, Chrome extension, signed-in profile and native site permission. Denied access remains blocked.",
   };
-  constructor(private readonly processRunner = new ProcessRunner()) {}
+  constructor(
+    private readonly processRunner = new ProcessRunner(),
+    private readonly browser: BrowserRuntime = defaultBrowserSession,
+    private readonly nativeConfiguration = nativeBrowserConfiguration,
+  ) {}
   async execute(input: StageInput): Promise<StageResult> {
+    if (input.mode === "browser" && !input.browserAuthorized)
+      throw new Error(
+        "Native browser navigation requires explicit authorization",
+      );
     if (input.mode === "browser")
-      throw new Error(this.capabilities.browserRequirement);
+      return this.browser.run(input, () => this.executeNative(input));
+    return this.executeNative(input);
+  }
+  private async executeNative(input: StageInput): Promise<StageResult> {
+    const native =
+      input.mode === "browser" ? this.nativeConfiguration() : undefined;
     let session: string | null = input.sessionId;
     let text = "";
     const args = [
@@ -25,12 +41,13 @@ export class CodexEngine implements Engine {
       "--ignore-rules",
       "--json",
       "-c",
-      'approval_policy="never"',
+      `approval_policy="${input.mode === "browser" ? "on-request" : "never"}"`,
       "-c",
       `sandbox_mode="${input.mode === "read" ? "read-only" : "workspace-write"}"`,
       "-c",
       "sandbox_workspace_write.network_access=false",
     ];
+    if (native) args.push(...native.args);
     if (input.mode === "edit" && input.directories?.length)
       args.push(
         "-c",
@@ -44,6 +61,11 @@ export class CodexEngine implements Engine {
       args,
       input.cwd,
       input.prompt +
+        (native
+          ? "\nUse only the official mcp__cua_repl browser tools with Chrome. Follow the tool's first-call entrypoint and returned documentation. Staging scope origins (not a native permission grant): " +
+            JSON.stringify(input.allowedOrigins ?? []) +
+            ". Never bypass native origin permissions, use CDP/Playwright substitutes, inspect existing unrelated tabs or claim success without observed UI evidence. If native permission is refused/unavailable, return status question with the exact origin and explain that the user must approve it in Codex Settings > Computer Use > Chrome > Manage, then retry this saved session. Do not wait for input in an invisible terminal."
+          : "") +
         "\nReturn only JSON matching: " +
         JSON.stringify({
           status: "passed|failed|blocked|question",
@@ -70,7 +92,7 @@ export class CodexEngine implements Engine {
       input.signal,
       600_000,
       input.onProcess,
-      engineEnvironment(),
+      native?.environment ?? engineEnvironment(),
     );
     if (result.code || !session)
       throw new Error("Codex failed; inspect saved session before retry");

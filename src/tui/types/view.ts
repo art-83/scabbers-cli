@@ -1,6 +1,8 @@
 import type { Run } from "../../workflows/types/run.js";
 import type { IntegrationHealth } from "../../integrations/types/integration-health.js";
+import type { BrowserDiagnostic } from "../../browser/diagnostics.js";
 export type View = {
+  browserDiagnostic?: BrowserDiagnostic | null;
   integrations?: IntegrationHealth[];
   settingsFile?: string;
   settingsPending?: boolean;

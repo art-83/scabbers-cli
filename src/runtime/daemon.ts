@@ -1,4 +1,5 @@
 import { soulFile } from "../profile/soul-file.js";
+import { BrowserSession } from "../browser/session.js";
 import { checkIntegrations, pendingHealth } from "../integrations/health.js";
 import type { Engine } from "../engines/abstractions/interface/engine.js";
 import { createHash } from "node:crypto";
@@ -82,6 +83,7 @@ export async function daemon(directory: string): Promise<void> {
             settingsPending,
             settingsError,
             integrations,
+            browserDiagnostic: store.getSetting("browser-diagnostic") ?? null,
             remoteEnabled: config.remoteEnabled,
             engine: config.engine,
             workers: config.workers,
@@ -205,7 +207,7 @@ export async function daemon(directory: string): Promise<void> {
       throw new Error(
         "Configure Slack owner identity and schedule before enabling remote processing",
       );
-    const secrets = new Secrets(config.aws);
+    const secrets = new Secrets(config.aws, config.credentialKeys);
     const slack = new SlackClient(
       await secrets.get(
         "SCABBERS_SLACK_BOT_TOKEN",
@@ -238,9 +240,10 @@ export async function daemon(directory: string): Promise<void> {
       }
     }
     const jev = new ConfiguredJudge(config);
+    const browser = new BrowserSession(config.browser, store);
     const engines = new Map<string, Engine>([
-      ["claude", new ClaudeEngine()],
-      ["codex", new CodexEngine()],
+      ["claude", new ClaudeEngine(undefined, browser)],
+      ["codex", new CodexEngine(undefined, browser)],
     ] as const);
     const executor = new StageExecutor(store, engines, soul, config);
     const pipeline = new Pipeline(

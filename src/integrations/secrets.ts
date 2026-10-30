@@ -1,9 +1,17 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Config } from "../config/types/config.js";
+import { CredentialStore } from "./credential-store.js";
 export class Secrets {
-  constructor(private readonly aws: Config["aws"]) {}
+  constructor(
+    private readonly aws: Config["aws"],
+    private readonly references: Config["credentialKeys"] = {},
+    private readonly directory?: string,
+  ) {}
   async get(environment: string, parameter?: string): Promise<string> {
+    const reference =
+      this.references[environment as keyof Config["credentialKeys"]];
+    if (reference) return new CredentialStore(this.directory).get(reference);
     const value = process.env[environment]?.trim();
     if (value) return value;
     if (!parameter)

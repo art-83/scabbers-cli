@@ -54,11 +54,6 @@ export class Pipeline {
         answer: decision.answer,
       };
       run.data.lastDecision = decision.id;
-      if (
-        decision.question.startsWith("Authorize staging browser") &&
-        decision.answer === "Authorize staging browser"
-      )
-        run.data.browserAuthorized = true;
       this.store.save(run);
     }
     if (run.state === "waiting") {

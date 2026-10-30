@@ -6,7 +6,7 @@ Delivery review date: **2026-10-30**. Worktree: `/home/arthur-nicolas/.codex/wor
 
 `npm run typecheck`, `npm test`, `npm run format:check` and `npm pack --dry-run` are the delivery checks. `npm test` builds first so runtime-process tests exercise the packaged JavaScript entry point.
 
-The final suite contains **50 tests in 15 files** and covers:
+The final suite contains **58 tests in 18 files** and covers:
 
 - SQLite source uniqueness, independent connections, resource reservations and pinned SOUL revisions;
 - restored XState snapshots/native session IDs, invalid transitions and persisted eligibility/evidence guards;
@@ -18,7 +18,8 @@ The final suite contains **50 tests in 15 files** and covers:
 - Totem/SmartPOS/mixed-scope exclusion;
 - real native CLI argument/protocol contracts using explicit process doubles and JEV's systemone response validation/two option orders/fail-closed behavior;
 - Ink rendering and switching Support/Development/Config without another runtime, and arrow/Enter activation selection;
-- validated JSON editing through a private draft, discard/retry, concurrent-edit protection and numeric-to-named weekday migration;
+- validated settings editing, concurrent-edit protection and numeric-to-named weekday migration;
+- menu-based per-day editing, hidden token persistence/replacement/removal, discard without secret writes and credential-file permissions;
 - per-day and split support shifts, inclusive starts and exclusive ends;
 - independent read-only Slack/Jira/GitLab health probes and sanitized failure results;
 - a real child-process daemon reconnect, crash/restart and preservation of queued stage/session with remote processing disabled;
@@ -37,7 +38,7 @@ HTTP doubles and scripted stages are not described as live business integration 
 
 | Capability              | Observation                                                                                                                     | Boundary                                                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code             | Installed 2.1.310; real local no-tool prompt and a second turn resumed the same native session with validated structured output | No browser or customer task executed                                                                                      |
+| Claude Code             | Installed 2.1.310; real local no-tool prompt and a second turn resumed the same native session with validated structured output | Chrome staging page read successfully with visible welcome text; no customer task executed                                |
 | Codex CLI               | Installed 0.165.0; real local no-tool prompt and a second turn resumed the same native thread with validated structured output  | Desktop browser transport not established                                                                                 |
 | Slack connector         | Read support channel and two complete threads                                                                                   | Discovered report-workflow source bot, reply-only Jira references and a real legacy triage marker; no messages sent       |
 | Slack REST              | Existing SSM bot reference authenticated to workspace ARCCA, read channel history and a thread                                  | No permissions changed, no support admission activated                                                                    |
@@ -45,7 +46,7 @@ HTTP doubles and scripted stages are not described as live business integration 
 | JEV service             | Real systemone request for a **synthetic local modal fixture**, both option orders; form-v0.6 result A-candidate, score 0.99    | No actual card classified; score is a provisional eligibility score, not success probability                              |
 | Slack app-level token   | Not present in checked process environment or legacy configuration reference                                                    | Socket Mode startup not proven; polling supported                                                                         |
 | Native local edit       | Both real engine adapters created the expected TypeScript file in an empty temporary repository                                 | No business repository or remote state changed                                                                            |
-| Browser bridge          | Claude native flag/host path documented; Codex CLI lacks verified standalone transport                                          | No browser actions or login flow tested remotely                                                                          |
+| Browser bridge          | Both native transports exercised against staging; Codex read a login page; Claude read the staging home page                    | Browser connectivity confirmed for both engines; no complete application workflow E2E                                     |
 | Jira / GitLab mutations | Adapter behavior checked with local/HTTP fixtures                                                                               | No real issues/MRs/branches/staging deployments modified                                                                  |
 | NOLA staging E2E        | Not executed                                                                                                                    | Requires configured endpoints, exact revision/CI/deployment, native browser connection/login and navigation authorization |
 
@@ -58,3 +59,9 @@ The built npm tarball was installed into an isolated temporary global prefix wit
 ## Preserved state
 
 The original autonomous-bugfix worktree, Python scripts, ledger and configuration were read as references. No legacy file was modified, no old unit/timer was reinstalled or restarted, and no credentials were copied into this repository. Smoke-test daemons use temporary private state and are stopped after verification. Default application state remains remote-disabled.
+
+Native browser validation: an isolated Codex CLI invocation loaded the installed first-party cua_repl server and read the staging login page after native authorization was corrected. Claude initially navigated but encountered a native domain-permission refusal; the final SDK host-callback run successfully read the staging home page, including the visible welcome text. Browser tools were automatically approved only in the browser stage, with native checks retained. The tests did not fill fields, submit forms or exercise a complete application workflow. A signed-in-looking page is an observation, not independent verification of application authentication. Browser tests cover exact staging scope, saved diagnostics and browser access serialization.
+
+The Claude SDK browser path has regression coverage for automatic native Chrome tool approvals, rejection of unrelated tools and native session preservation. It does not persist site grants; non-browser stages retain the previous CLI contract. Live site authorization must still be verified separately from local tests.
+
+A subsequent real Claude check reused its staging tab, captured the home page, opened the side menu and clicked **Comunicados**. A second capture and tab metadata confirmed the internal route `/announcements` and the heading **Comunicados**. Native tool calls, screenshots and structured evidence were saved in private local state, outside the repository. No records were created, modified or deleted. This validates screenshot and internal navigation tool calling; the issue-to-deployment workflow remains untested end to end.

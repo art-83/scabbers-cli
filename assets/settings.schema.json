@@ -17,6 +17,25 @@
       "type": "string",
       "minLength": 1
     },
+    "browser": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "executable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profileDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "testOrigin": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    },
     "version": {
       "default": 1,
       "type": "number",
@@ -39,6 +58,24 @@
     "remoteEnabled": {
       "default": false,
       "type": "boolean"
+    },
+    "credentialKeys": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "SCABBERS_SLACK_BOT_TOKEN",
+          "SCABBERS_SLACK_APP_TOKEN",
+          "SCABBERS_JIRA_TOKEN",
+          "SCABBERS_GITLAB_TOKEN",
+          "TYPESAFE_API_KEY"
+        ]
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^local:[0-9a-f-]{36}$"
+      }
     },
     "slack": {
       "default": {
@@ -272,10 +309,12 @@
   },
   "required": [
     "paths",
+    "browser",
     "version",
     "engine",
     "workers",
     "remoteEnabled",
+    "credentialKeys",
     "slack",
     "repositories",
     "skillPaths",

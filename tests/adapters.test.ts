@@ -45,7 +45,7 @@ describe("Native engine contracts", () => {
     expect(args).toContain("Read,Grep,Glob");
     expect(args).not.toContain("--dangerously-skip-permissions");
   });
-  it("persists Codex thread ID before completion and forbids native browser promises", async () => {
+  it("persists Codex thread IDs and loads the selected native browser transport only for authorized browser stages", async () => {
     const onSession = vi.fn();
     const runner = {
       run: vi.fn(async (_command, _args, _cwd, _prompt, line) => {
@@ -61,13 +61,39 @@ describe("Native engine contracts", () => {
         return { code: 0, stdout: "" };
       }),
     };
-    const engine = new CodexEngine(runner as never);
+    const browser = { run: vi.fn(async (_input, execute) => execute()) };
+    const nativeConfiguration = vi.fn(() => ({
+      args: ["-c", "mcp_servers.cua_repl.enabled=true"],
+      environment: { PATH: process.env.PATH },
+    }));
+    const engine = new CodexEngine(
+      runner as never,
+      browser,
+      nativeConfiguration,
+    );
     await engine.execute({ ...input, onSession });
     expect(onSession).toHaveBeenCalledWith("thread-id");
+    expect(nativeConfiguration).not.toHaveBeenCalled();
     await expect(
-      engine.execute({ ...input, mode: "browser", browserAuthorized: true }),
-    ).rejects.toThrow("CLI transport");
-    expect(runner.run).toHaveBeenCalledTimes(1);
+      engine.execute({ ...input, mode: "browser", browserAuthorized: false }),
+    ).rejects.toThrow("authorization");
+    await engine.execute({
+      ...input,
+      mode: "browser",
+      browserAuthorized: true,
+      allowedOrigins: ["https://staging.example.com"],
+    });
+    expect(runner.run).toHaveBeenCalledTimes(2);
+    expect(nativeConfiguration).toHaveBeenCalledTimes(1);
+    const readArgs = runner.run.mock.calls[0]![1];
+    const browserArgs = runner.run.mock.calls[1]![1];
+    expect(readArgs).toContain('approval_policy="never"');
+    expect(browserArgs).toContain('approval_policy="on-request"');
+    expect(browserArgs).toContain("mcp_servers.cua_repl.enabled=true");
+    expect(browserArgs).toContain("--ignore-user-config");
+    expect(browserArgs).not.toContain(
+      "--dangerously-bypass-approvals-and-sandbox",
+    );
   });
   it("does not silently replace a resumed Codex conversation", async () => {
     const runner = {

@@ -10,10 +10,10 @@ export class ConfiguredJudge implements EligibilityJudge {
     form: EligibilityForm,
     blockedNames: string[],
   ): Promise<EligibilityVerdict> {
-    const key = await new Secrets(this.config.aws).get(
-      "TYPESAFE_API_KEY",
-      this.config.jevKeyParameter,
-    );
+    const key = await new Secrets(
+      this.config.aws,
+      this.config.credentialKeys,
+    ).get("TYPESAFE_API_KEY", this.config.jevKeyParameter);
     return new JevClient(key).classify(form, blockedNames);
   }
 }
