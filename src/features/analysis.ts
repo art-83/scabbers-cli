@@ -1,3 +1,5 @@
+import { memberAnalysisSchema } from "./member-analysis-schema.js";
+import { ValidatedMemberAnalysis } from "./validated-member-analysis.js";
 import type { DecisionDetails } from "../decisions/types/decision-context.js";
 import { ValidatedPlan } from "./validated-plan.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
@@ -109,7 +111,12 @@ export class FeatureAnalysis {
       this.store.save(run);
       const result = await this.executor.execute(
         run,
-        "Only scopeMembers may be implemented; all other cards are context and must retain their behavior, assignee and status. Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities for featureMember only. Other family members are summarized here and will each receive a separate full-description analysis. Do not ask the human to copy sibling descriptions merely because this step provides only their summaries. Defer cross-member acceptance synthesis until all saved member analyses are available. Do not edit. Return data:{key,summary,acceptance:string[],approach,dependencies:string[]}; do not invent requirements. Missing decisions => question.",
+        "Only scopeMembers may be implemented; all other cards are context and must retain their behavior, assignee and status. Read this family member and actual repository code in the pinned analysis workspaces. Analyze acceptance criteria, dependencies, completed/context work and bounded implementation possibilities for featureMember only. Other family members are summarized here and will each receive a separate full-description analysis. Do not ask the human to copy sibling descriptions merely because this step provides only their summaries. Defer cross-member acceptance synthesis until all saved member analyses are available. Do not edit. Return approach as a single plain-text string, not an object. Do not invent requirements. Missing consequential product decisions => question. Exact member data schema: " +
+          JSON.stringify(
+            z.toJSONSchema(
+              memberAnalysisSchema.extend({ key: z.literal(next.key) }),
+            ),
+          ),
         "nola-engineering:solution-analysis",
         "read",
         cwd,
@@ -125,15 +132,10 @@ export class FeatureAnalysis {
         );
         return;
       }
-      const analysis = z
-        .object({
-          key: z.literal(next.key),
-          summary: z.string().min(1).max(2000),
-          acceptance: z.array(z.string().min(1).max(1000)).min(1).max(30),
-          approach: z.string().min(1).max(4000),
-          dependencies: z.array(z.string()).max(100),
-        })
-        .parse(result.data);
+      const analysis = await new ValidatedMemberAnalysis(
+        this.store,
+        this.executor,
+      ).read(run, next.key, result.data, cwd, signal);
       analyses[next.key] = analysis;
       run.data.featureAnalyses = analyses;
       delete run.data.featureMember;
