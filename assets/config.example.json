@@ -22,7 +22,8 @@
   },
   "aws": {
     "profile": "replace-with-existing-profile",
-    "region": "replace-with-configured-region"
+    "region": "replace-with-configured-region",
+    "readOnlyLogs": false
   },
   "jevKeyParameter": "/replace/with/existing/jev-reference",
   "jira": {

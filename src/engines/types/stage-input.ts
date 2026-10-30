@@ -1,10 +1,12 @@
 import type { EngineOptions } from "./engine-options.js";
+import type { LogConnection } from "../../observability/types/log-query.js";
 export type StageInput = {
   options?: EngineOptions;
   runId: string;
   stage: string;
   prompt: string;
   imagePaths?: string[];
+  productionLogs?: LogConnection;
   cwd: string;
   sessionId: string | null;
   mode: "read" | "edit" | "browser";

@@ -97,10 +97,11 @@ export const configSchema = z.strictObject({
   historySources: z.array(z.string()).default([]),
   aws: z
     .strictObject({
+      readOnlyLogs: z.boolean().default(false),
       profile: z.string().optional(),
       region: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
   jevKeyParameter: z.string().optional(),
 });
 export type Config = z.infer<typeof configSchema>;

@@ -15,6 +15,7 @@ export function importLegacyReferences(path: string, current: Config): Config {
         : {}),
     },
     aws: {
+      readOnlyLogs: false,
       ...(typeof legacy.aws_profile === "string"
         ? { profile: legacy.aws_profile }
         : {}),

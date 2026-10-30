@@ -1,4 +1,5 @@
 import { NativeQuotaError } from "../errors/quota-error.js";
+import { productionLogsServer } from "../production-logs.js";
 import { StageResultReader } from "../stage-result-reader.js";
 import { claudeOptionsSchema } from "../../config/engine-options-schema.js";
 import { accessSync, constants, realpathSync } from "node:fs";
@@ -173,7 +174,12 @@ export class ClaudeEngine implements Engine {
       input.mode === "browser" ? "user" : "",
       "--strict-mcp-config",
       "--mcp-config",
-      '{"mcpServers":{}}',
+      JSON.stringify({
+        mcpServers:
+          input.mode === "read" && input.productionLogs
+            ? { scabbers_logs: productionLogsServer(input.productionLogs) }
+            : {},
+      }),
       "--json-schema",
       JSON.stringify(z.toJSONSchema(stageResultSchema, { target: "draft-7" })),
       input.sessionId ? "--resume" : "--session-id",
@@ -200,7 +206,8 @@ export class ClaudeEngine implements Engine {
         "--tools",
         "Read,Grep,Glob",
         "--allowedTools",
-        "Read,Grep,Glob",
+        "Read,Grep,Glob" +
+          (input.productionLogs ? ",mcp__scabbers_logs__query_logs" : ""),
       );
     else if (input.mode === "edit")
       args.push(

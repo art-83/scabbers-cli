@@ -99,3 +99,7 @@ The History of Orders investigation stopped at the engine result boundary becaus
 ### Product-name normalization and feature-plan checkpoints (October 30, 2026)
 
 All three observed plans failed before JEV because display-name product labels did not match the policy's canonical identifiers. Known aliases now normalize through the shared eligibility schema and policy. Tests cover the actual labels, canonical values and typography variations while retaining excluded/mixed/unknown product and repository restrictions. End-to-end controller unit coverage verifies transition to eligibility without another nomenclature question and checkpoint reuse without another LLM call; an excluded plan stays at investigation with its candidate preserved for diagnosis.
+
+### Read-only production logs and linked support evidence (October 30, 2026)
+
+The new stdio MCP server completed a real authenticated CloudWatch log-group read with the configured AWS profile. That narrow prefix returned no groups; this does not establish the incident cause or absence of logs elsewhere. The tool has no write operations or arbitrary AWS command/endpoint input. Tests exercise bounded queries, redaction, denied/malformed responses, incomplete pagination, argument injection attempts, native adapter isolation and source-thread collection/provenance. A linked origin channel was accessible through the connected Slack plugin but unavailable to the bot (`not_in_channel`); manual reanalysis explicitly identifies that different evidence source rather than claiming the bot collected it.

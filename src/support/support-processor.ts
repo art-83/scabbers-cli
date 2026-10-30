@@ -1,7 +1,7 @@
 import type { DecisionDetails } from "../decisions/types/decision-context.js";
 import type { AnalysisWorkspace } from "../development/abstractions/interface/analysis-workspace.js";
 import type { DecisionProposal } from "../decisions/types/decision-proposal.js";
-import { z } from "zod";
+import { triagePlanSchema } from "./triage-plan-schema.js";
 import type { Store } from "../storage/store.js";
 import type { Config } from "../config/types/config.js";
 import type { Run } from "../workflows/types/run.js";
@@ -12,27 +12,8 @@ import type { DecisionService } from "../decisions/decision-service.js";
 import { Workflow } from "../workflows/workflow.js";
 import { Effects } from "../runtime/effects.js";
 import { hasTriage } from "../support/triage-detector.js";
-const planSchema = z.object({
-  reportKey: z.string().regex(/^[A-Z][A-Z0-9]+-\d+$/),
-  type: z.enum([
-    "Bug",
-    "Bug Crítico",
-    "Ticket",
-    "duplicate",
-    "cancel",
-    "product",
-    "insufficient",
-  ]),
-  destinationKey: z
-    .string()
-    .regex(/^[A-Z][A-Z0-9]+-\d+$/)
-    .optional(),
-  cancellationReason: z.string().optional(),
-  summary: z.string().min(1),
-  description: z.string().min(30),
-  evidence: z.array(z.string()).min(1),
-  ambiguous: z.literal(false),
-});
+import { ThreadEvidence } from "./thread-evidence.js";
+
 export class SupportProcessor {
   private readonly workflow: Workflow;
   private readonly effects: Effects;
@@ -77,6 +58,11 @@ export class SupportProcessor {
     }
     if (run.state === "investigating") {
       run.data.messages = messages;
+      run.data.originThreads = await new ThreadEvidence(this.slack).collect(
+        messages,
+        channel,
+        thread,
+      );
       const keys = [
         ...new Set(
           messages.flatMap(
@@ -139,13 +125,13 @@ export class SupportProcessor {
         );
         return;
       }
-      run.data.plan = planSchema.parse(result.data);
+      run.data.plan = triagePlanSchema.parse(result.data);
       this.store.save(run);
       this.workflow.transition(run, "READY");
       return;
     }
     if (run.state === "routing") {
-      const plan = planSchema.parse(run.data.plan);
+      const plan = triagePlanSchema.parse(run.data.plan);
       const sourceIssues = run.data.jiraIssues as {
         key: string;
         fields: { issuetype: { name: string } };

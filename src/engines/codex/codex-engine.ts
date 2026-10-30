@@ -1,4 +1,5 @@
 import { NativeQuotaError } from "../errors/quota-error.js";
+import { productionLogsServer } from "../production-logs.js";
 import { z } from "zod";
 import { StageResultReader } from "../stage-result-reader.js";
 import { codexOptionsSchema } from "../../config/engine-options-schema.js";
@@ -55,6 +56,15 @@ export class CodexEngine implements Engine {
       "sandbox_workspace_write.network_access=false",
     ];
     if (native) args.push(...native.args);
+    if (input.mode === "read" && input.productionLogs) {
+      const server = productionLogsServer(input.productionLogs);
+      args.push(
+        "-c",
+        "mcp_servers.scabbers_logs.command=" + JSON.stringify(server.command),
+        "-c",
+        "mcp_servers.scabbers_logs.args=" + JSON.stringify(server.args),
+      );
+    }
     if (options.model) args.push("--model", options.model);
     if (options.effort)
       args.push(

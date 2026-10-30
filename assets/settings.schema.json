@@ -443,9 +443,12 @@
       }
     },
     "aws": {
-      "default": {},
       "type": "object",
       "properties": {
+        "readOnlyLogs": {
+          "default": false,
+          "type": "boolean"
+        },
         "profile": {
           "type": "string"
         },
@@ -453,6 +456,7 @@
           "type": "string"
         }
       },
+      "required": ["readOnlyLogs"],
       "additionalProperties": false
     },
     "jevKeyParameter": {
